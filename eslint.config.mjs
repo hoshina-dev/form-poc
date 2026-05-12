@@ -1,8 +1,12 @@
+// @ts-check
+
+import { createESLintConfig } from "@leomotors/config";
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 const eslintConfig = defineConfig([
+  createESLintConfig(),
   ...nextVitals,
   ...nextTs,
   // Override default ignores of eslint-config-next.
@@ -12,6 +16,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/libs/*.d.ts",
   ]),
 ]);
 

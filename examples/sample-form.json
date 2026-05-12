@@ -1,0 +1,116 @@
+{
+  "id": "coffee-order",
+  "title": "Coffee Order Flow",
+  "description": "Customer picks a drink, barista confirms and prices it, register prints the receipt.",
+  "userForm": {
+    "title": "Your Order",
+    "description": "Tell us how you like your coffee.",
+    "questions": [
+      {
+        "id": "customer_name",
+        "type": "string",
+        "label": "Your name",
+        "required": true,
+        "placeholder": "e.g. Hoshina",
+        "maxLength": 40
+      },
+      {
+        "id": "size",
+        "type": "select-string",
+        "label": "Size",
+        "required": true,
+        "options": [
+          { "label": "Small", "value": "S" },
+          { "label": "Medium", "value": "M" },
+          { "label": "Large", "value": "L" }
+        ],
+        "default": "M"
+      },
+      {
+        "id": "shots",
+        "type": "number",
+        "label": "Espresso shots",
+        "required": true,
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "default": 2
+      },
+      {
+        "id": "sweetness",
+        "type": "select-number",
+        "label": "Sweetness",
+        "description": "Sugar level in percent.",
+        "options": [
+          { "label": "0%", "value": 0 },
+          { "label": "50%", "value": 50 },
+          { "label": "100%", "value": 100 },
+          { "label": "125% (extra)", "value": 125 }
+        ],
+        "default": 50
+      }
+    ]
+  },
+  "workerForm": {
+    "title": "Barista Confirmation",
+    "description": "Confirm the order and price it.",
+    "questions": [
+      {
+        "id": "size",
+        "type": "select-string",
+        "label": "Size (from customer)",
+        "options": [
+          { "label": "Small", "value": "S" },
+          { "label": "Medium", "value": "M" },
+          { "label": "Large", "value": "L" }
+        ],
+        "prefillFrom": "size"
+      },
+      {
+        "id": "shots",
+        "type": "number",
+        "label": "Shots (from customer)",
+        "min": 1,
+        "max": 6,
+        "step": 1,
+        "prefillFrom": "shots"
+      },
+      {
+        "id": "size_mult",
+        "type": "select-number",
+        "label": "Size multiplier",
+        "description": "Pricing multiplier for cup size.",
+        "required": true,
+        "options": [
+          { "label": "Small (1.0x)", "value": 1 },
+          { "label": "Medium (1.5x)", "value": 1.5 },
+          { "label": "Large (2.0x)", "value": 2 }
+        ],
+        "default": 1.5
+      },
+      {
+        "id": "shot_price",
+        "type": "number",
+        "label": "Per-shot price ($)",
+        "required": true,
+        "min": 0,
+        "step": 0.5,
+        "default": 2
+      },
+      {
+        "id": "tip",
+        "type": "number",
+        "label": "Tip ($)",
+        "min": 0,
+        "step": 0.5,
+        "default": 0
+      }
+    ]
+  },
+  "calculations": {
+    "baseCost": "shots * shot_price",
+    "totalCost": "baseCost * size_mult + tip",
+    "sugarGrams": "sweetness / 100 * 8"
+  },
+  "template": "{{customer_name}} ordered a {{size}} with {{shots}} shots, sweetness {{sweetness}}%. Total ${{totalCost}} (sugar ~{{sugarGrams}}g)."
+}
