@@ -8,6 +8,8 @@ import {
   mantineHtmlProps,
 } from "@mantine/core";
 
+import { Navbar } from "@/components/Navbar";
+
 export const metadata: Metadata = {
   title: "Form Builder POC",
   description: "JSON-driven form builder and renderer.",
@@ -24,7 +26,10 @@ export default function RootLayout({
         <ColorSchemeScript />
       </head>
       <body>
-        <MantineProvider>{children}</MantineProvider>
+        <MantineProvider>
+          <Navbar />
+          {children}
+        </MantineProvider>
       </body>
     </html>
   );
