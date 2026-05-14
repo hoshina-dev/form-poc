@@ -117,7 +117,7 @@ export function FormRenderer({
   );
 }
 
-interface QuestionFieldProps {
+export interface QuestionFieldProps {
   question: Question;
   value: AnswerValue;
   disabled?: boolean;
@@ -136,7 +136,7 @@ function asNumber(value: AnswerValue, fallback: number): number {
   return typeof value === "number" ? value : fallback;
 }
 
-function QuestionField({
+export function QuestionField({
   question,
   value,
   disabled,

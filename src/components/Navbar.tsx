@@ -16,6 +16,11 @@ const links = [
     label: "Preview",
     match: (p: string) => p.startsWith("/preview"),
   },
+  {
+    href: "/gallery",
+    label: "Gallery",
+    match: (p: string) => p.startsWith("/gallery"),
+  },
 ];
 
 export function Navbar() {
