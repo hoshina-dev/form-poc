@@ -14,10 +14,10 @@ import {
 import type { UseFormReturnType } from "@mantine/form";
 
 import {
-  QUESTION_TYPE_OPTIONS,
+  type FormDraft,
   makeQuestion,
   makeWorkerQuestion,
-  type FormDraft,
+  QUESTION_TYPE_OPTIONS,
 } from "@/lib/builder";
 import type { Question, QuestionType, WorkerQuestion } from "@/lib/schema";
 
@@ -151,11 +151,7 @@ interface TypeSpecificFieldsProps {
   question: Question | WorkerQuestion;
 }
 
-function TypeSpecificFields({
-  form,
-  path,
-  question,
-}: TypeSpecificFieldsProps) {
+function TypeSpecificFields({ form, path, question }: TypeSpecificFieldsProps) {
   switch (question.type) {
     case "string":
       return (

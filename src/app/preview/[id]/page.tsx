@@ -1,12 +1,5 @@
+import { Anchor, Container, Group, Paper, Stack, Text } from "@mantine/core";
 import { notFound } from "next/navigation";
-import {
-  Anchor,
-  Container,
-  Group,
-  Paper,
-  Stack,
-  Text,
-} from "@mantine/core";
 
 import { FormFlow } from "@/components/FormFlow";
 import { readForm } from "@/lib/storage";

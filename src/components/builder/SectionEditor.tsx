@@ -11,7 +11,11 @@ import {
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 
-import { makeQuestion, makeWorkerQuestion, type FormDraft } from "@/lib/builder";
+import {
+  type FormDraft,
+  makeQuestion,
+  makeWorkerQuestion,
+} from "@/lib/builder";
 
 import { QuestionEditor } from "./QuestionEditor";
 
@@ -78,7 +82,9 @@ export function SectionEditor({
             onClick={() =>
               form.insertListItem(
                 questionsPath,
-                isWorker ? makeWorkerQuestion("string") : makeQuestion("string"),
+                isWorker
+                  ? makeWorkerQuestion("string")
+                  : makeQuestion("string"),
               )
             }
           >

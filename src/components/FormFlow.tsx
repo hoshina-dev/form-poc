@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import {
   Alert,
   Button,
@@ -12,16 +11,16 @@ import {
   Text,
   Title,
 } from "@mantine/core";
+import { useMemo, useState } from "react";
+
+import { evaluateCalculations, interpolateTemplate } from "@/lib/evaluator";
 import type {
   AnswerValue,
   FormAnswers,
   FormSchema,
   QuestionId,
 } from "@/lib/schema";
-import {
-  evaluateCalculations,
-  interpolateTemplate,
-} from "@/lib/evaluator";
+
 import { FormRenderer } from "./FormRenderer";
 
 type Stage = 0 | 1 | 2;

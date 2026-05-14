@@ -1,12 +1,12 @@
 import "@mantine/core/styles.css";
 import "./globals.css";
 
-import type { Metadata } from "next";
 import {
   ColorSchemeScript,
-  MantineProvider,
   mantineHtmlProps,
+  MantineProvider,
 } from "@mantine/core";
+import type { Metadata } from "next";
 
 import { Navbar } from "@/components/Navbar";
 

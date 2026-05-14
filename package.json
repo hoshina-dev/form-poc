@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "format": "eslint --fix",
     "check": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,7 +24,7 @@
     "@types/node": "^24.12.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "eslint": "^10.3.0",
+    "eslint": "^9.39.4",
     "eslint-config-next": "16.2.6",
     "postcss": "^8.5.14",
     "postcss-preset-mantine": "^1.18.0",
@@ -31,5 +32,10 @@
     "prettier": "^3.8.3",
     "typescript": "^6.0.3"
   },
-  "packageManager": "pnpm@11.1.2"
+  "packageManager": "pnpm@11.1.2",
+  "pnpm": {
+    "overrides": {
+      "eslint": "9.39.4"
+    }
+  }
 }

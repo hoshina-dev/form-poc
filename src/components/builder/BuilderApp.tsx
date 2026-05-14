@@ -1,8 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Alert,
   Button,
@@ -17,9 +14,12 @@ import {
   Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
 import { FormFlow } from "@/components/FormFlow";
-import { fromDraft, toDraft, type FormDraft } from "@/lib/builder";
+import { type FormDraft, fromDraft, toDraft } from "@/lib/builder";
 import { FormSchema } from "@/lib/schema";
 
 import { CalculationsEditor } from "./CalculationsEditor";
@@ -95,7 +95,9 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
             })),
           );
         } else {
-          setErrors([{ path: "(server)", message: body.error ?? "Save failed" }]);
+          setErrors([
+            { path: "(server)", message: body.error ?? "Save failed" },
+          ]);
         }
         return;
       }

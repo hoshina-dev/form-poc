@@ -1,8 +1,8 @@
 "use client";
 
+import { Anchor, Container, Group, Text } from "@mantine/core";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Anchor, Container, Group, Text } from "@mantine/core";
 
 const links = [
   { href: "/", label: "List", match: (p: string) => p === "/" },
