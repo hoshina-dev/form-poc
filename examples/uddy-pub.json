@@ -1,0 +1,106 @@
+{
+  "id": "uddy-pub",
+  "title": "Uddy's Pub",
+  "description": "Customer submit application, staff confirms, security door open (or kick you in the ass).",
+  "userForm": {
+    "title": "Entry Form",
+    "description": "Tell us about you.",
+    "questions": [
+      {
+        "id": "name",
+        "type": "string",
+        "label": "Your name",
+        "required": true,
+        "placeholder": "Hoshina",
+        "maxLength": 40
+      },
+      {
+        "id": "age",
+        "type": "number",
+        "label": "Age",
+        "required": true,
+        "min": 0,
+        "max": 120,
+        "step": 1
+      },
+      {
+        "id": "gay",
+        "type": "select-number",
+        "label": "Gay",
+        "description": "How gay are you?",
+        "options": [
+          {
+            "label": "STRAIGHT",
+            "value": 0
+          },
+          {
+            "label": "50%",
+            "value": 50
+          },
+          {
+            "label": "100%",
+            "value": 100
+          },
+          {
+            "label": "SUPER GAY",
+            "value": 300
+          }
+        ],
+        "default": 0
+      }
+    ]
+  },
+  "workerForm": {
+    "title": "ID Check",
+    "description": "Check their ID and confirm.",
+    "questions": [
+      {
+        "id": "name",
+        "type": "string",
+        "label": "Name (from customer)",
+        "prefillFrom": "name"
+      },
+      {
+        "id": "age",
+        "type": "number",
+        "label": "Age (from customer)",
+        "min": 0,
+        "max": 120,
+        "step": 1,
+        "prefillFrom": "age"
+      },
+      {
+        "id": "result",
+        "type": "select-number",
+        "label": "Is this person gay",
+        "description": "Blue Giant",
+        "required": true,
+        "options": [
+          {
+            "label": "No",
+            "value": 0
+          },
+          {
+            "label": "Yes",
+            "value": 1
+          }
+        ],
+        "default": 0
+      },
+      {
+        "id": "bribe",
+        "type": "number",
+        "label": "Bribe ($)",
+        "min": 0,
+        "step": 1,
+        "default": 0
+      }
+    ]
+  },
+  "calculations": {
+    "allowed": "age >= 18 && (result == 1 || bribe >= 67)",
+    "allowedMsg": "allowed ? 'Welcome to Uddy\\'s Pub!' : 'Sorry, you are not allowed to enter.'",
+    "birthYear": "2026 - age"
+  },
+  "template": "{{name}} (born in {{birthYear}}) {{allowedMsg}} offered bribe of ${{bribe}}."
+}
