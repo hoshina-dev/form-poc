@@ -1,4 +1,6 @@
-import { Button, Container, Paper, Stack, Text, Title } from "@mantine/core";
+import { Container, Paper, Stack, Text, Title } from "@mantine/core";
+
+import { LinkButton } from "@/components/LinkButton";
 
 export default function PreviewIndexPage() {
   return (
@@ -10,9 +12,9 @@ export default function PreviewIndexPage() {
             Pick a form from the List to run it through the user → worker →
             result flow.
           </Text>
-          <Button component="a" href="/" variant="light">
+          <LinkButton href="/" variant="light">
             Go to list
-          </Button>
+          </LinkButton>
         </Stack>
       </Paper>
     </Container>

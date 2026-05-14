@@ -1,10 +1,9 @@
-import { Anchor, Container, Group, Paper, Stack, Text } from "@mantine/core";
+import { Container, Group, Paper, Stack, Text } from "@mantine/core";
 import { notFound } from "next/navigation";
 
 import { FormFlow } from "@/components/FormFlow";
-import { readForm } from "@/lib/storage";
-
-export const dynamic = "force-dynamic";
+import { LinkAnchor } from "@/components/LinkButton";
+import { listForms, readForm } from "@/lib/storage";
 
 interface PreviewPageProps {
   params: Promise<{ id: string }>;
@@ -25,12 +24,12 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
             Previewing form id: <strong>{id}</strong>
           </Text>
           <Group gap="md">
-            <Anchor component="a" href={`/builder/${id}`} size="sm">
-              Edit schema
-            </Anchor>
-            <Anchor component="a" href="/" size="sm">
+            <LinkAnchor href={`/builder/${id}`} size="sm">
+              Inspect schema
+            </LinkAnchor>
+            <LinkAnchor href="/" size="sm">
               Back to list
-            </Anchor>
+            </LinkAnchor>
           </Group>
         </Group>
         <Paper withBorder p="lg" radius="md">
@@ -39,4 +38,9 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
       </Stack>
     </Container>
   );
+}
+
+export async function generateStaticParams() {
+  const forms = await listForms();
+  return forms.map((f) => ({ id: f.id }));
 }

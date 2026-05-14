@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { GalleryValueDisplay } from "@/components/gallery/GalleryValueDisplay";
-import { findGalleryEntry } from "@/lib/gallery";
+import { findGalleryEntry, GALLERY } from "@/lib/gallery";
 
 interface PageProps {
   params: Promise<{ type: string }>;
@@ -53,4 +53,8 @@ export default async function GalleryDetailPage({ params }: PageProps) {
       </Paper>
     </Stack>
   );
+}
+
+export function generateStaticParams() {
+  return GALLERY.map((entry) => ({ type: entry.type }));
 }

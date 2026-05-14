@@ -1,5 +1,4 @@
 import {
-  Button,
   Card,
   Container,
   Group,
@@ -9,10 +8,8 @@ import {
   Title,
 } from "@mantine/core";
 
-import { DeleteButton } from "@/components/list/DeleteButton";
+import { LinkAnchor, LinkButton } from "@/components/LinkButton";
 import { listForms } from "@/lib/storage";
-
-export const dynamic = "force-dynamic";
 
 export default async function ListPage() {
   const forms = await listForms();
@@ -20,26 +17,26 @@ export default async function ListPage() {
   return (
     <Container size="xl" py="lg">
       <Stack gap="lg">
-        <Group justify="space-between" align="flex-end">
-          <div>
-            <Title order={1}>Forms</Title>
-            <Text c="dimmed">
-              Browse, edit, preview, or delete saved form schemas.
-            </Text>
-          </div>
-          <Button component="a" href="/builder">
-            New form
-          </Button>
-        </Group>
+        <div>
+          <Title order={1}>Forms</Title>
+          <Text c="dimmed">
+            Browse the example form schemas. Open one to preview it or inspect
+            its builder view.
+          </Text>
+          <Text c="dimmed" size="sm" mt={4}>
+            Looking for the component reference?{" "}
+            <LinkAnchor href="/gallery">Open the gallery</LinkAnchor>.
+          </Text>
+        </div>
 
         {forms.length === 0 ? (
           <Paper withBorder p="xl" radius="md">
             <Stack gap="sm" align="flex-start">
-              <Title order={3}>No forms yet</Title>
-              <Text c="dimmed">Get started by creating your first form.</Text>
-              <Button component="a" href="/builder">
-                Create your first form
-              </Button>
+              <Title order={3}>No forms bundled</Title>
+              <Text c="dimmed">
+                The build didn&apos;t include any form JSON. Drop files into{" "}
+                <code>data/forms/</code> and rebuild.
+              </Text>
             </Stack>
           </Paper>
         ) : (
@@ -59,23 +56,20 @@ export default async function ListPage() {
                     )}
                   </div>
                   <Group gap="xs" wrap="nowrap">
-                    <Button
-                      component="a"
+                    <LinkButton
                       href={`/preview/${form.id}`}
                       variant="light"
                       size="xs"
                     >
                       Preview
-                    </Button>
-                    <Button
-                      component="a"
+                    </LinkButton>
+                    <LinkButton
                       href={`/builder/${form.id}`}
                       variant="default"
                       size="xs"
                     >
-                      Edit
-                    </Button>
-                    <DeleteButton id={form.id} />
+                      Inspect
+                    </LinkButton>
                   </Group>
                 </Group>
               </Card>

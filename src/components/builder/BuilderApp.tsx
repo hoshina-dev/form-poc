@@ -15,7 +15,6 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { FormFlow } from "@/components/FormFlow";
@@ -30,15 +29,7 @@ interface BuilderAppProps {
   mode: "create" | "edit";
 }
 
-interface SaveError {
-  path: string;
-  message: string;
-}
-
 export function BuilderApp({ initial, mode }: BuilderAppProps) {
-  const router = useRouter();
-  const [errors, setErrors] = useState<SaveError[]>([]);
-  const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const form = useForm<FormDraft>({
@@ -53,70 +44,6 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
     [form.values.userForm.questions],
   );
 
-  const buildSchema = (): FormSchema | null => {
-    const candidate = fromDraft(form.values);
-    const result = FormSchema.safeParse(candidate);
-    if (!result.success) {
-      setErrors(
-        result.error.issues.map((i) => ({
-          path: i.path.length ? i.path.join(".") : "(root)",
-          message: i.message,
-        })),
-      );
-      return null;
-    }
-    setErrors([]);
-    return result.data;
-  };
-
-  const submit = async (after: "stay" | "preview") => {
-    const schema = buildSchema();
-    if (!schema) return;
-    setSaving(true);
-    try {
-      const url = mode === "create" ? "/api/forms" : `/api/forms/${initial.id}`;
-      const method = mode === "create" ? "POST" : "PUT";
-      const res = await fetch(url, {
-        method,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(schema),
-      });
-
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          issues?: { path: (string | number)[]; message: string }[];
-        };
-        if (body.issues) {
-          setErrors(
-            body.issues.map((i) => ({
-              path: i.path.length ? i.path.join(".") : "(root)",
-              message: i.message,
-            })),
-          );
-        } else {
-          setErrors([
-            { path: "(server)", message: body.error ?? "Save failed" },
-          ]);
-        }
-        return;
-      }
-
-      if (after === "preview") {
-        router.push(`/preview/${schema.id}`);
-        return;
-      }
-
-      if (mode === "create") {
-        router.replace(`/builder/${schema.id}`);
-      } else {
-        router.refresh();
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const draftSchema = previewOpen ? safeSchema(form.values) : null;
 
   return (
@@ -127,9 +54,14 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
             {mode === "create" ? "New form" : `Edit: ${initial.title}`}
           </Title>
           <Button variant="subtle" component={Link} href="/">
-            Cancel
+            Back to list
           </Button>
         </Group>
+
+        <Alert color="yellow" variant="light" title="Read-only demo">
+          This deployment is static — edits are not persisted. Clone the repo
+          and run <code>pnpm dev</code> locally for a writable backend.
+        </Alert>
 
         <Paper withBorder p="md" radius="md">
           <Stack gap="sm">
@@ -182,21 +114,6 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
           </Stack>
         </Paper>
 
-        {errors.length > 0 && (
-          <Alert color="red" variant="light" title="Cannot save">
-            <Stack gap={2}>
-              {errors.map((e, i) => (
-                <Text size="sm" key={i}>
-                  <Text component="span" fw={600}>
-                    {e.path}
-                  </Text>
-                  : {e.message}
-                </Text>
-              ))}
-            </Stack>
-          </Alert>
-        )}
-
         <Group
           style={{
             position: "sticky",
@@ -206,17 +123,6 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
             borderTop: "1px solid var(--mantine-color-default-border)",
           }}
         >
-          <Button onClick={() => submit("stay")} loading={saving}>
-            Save
-          </Button>
-          <Button
-            variant="filled"
-            color="grape"
-            onClick={() => submit("preview")}
-            loading={saving}
-          >
-            Save & preview
-          </Button>
           <Button variant="default" onClick={() => setPreviewOpen(true)}>
             Live preview
           </Button>
@@ -234,8 +140,7 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
           <FormFlow form={draftSchema} />
         ) : (
           <Alert color="red" variant="light" title="Draft is not valid">
-            Fix the schema errors before previewing. Press Save to see the
-            validation messages.
+            Fix the schema before previewing.
           </Alert>
         )}
       </Drawer>
