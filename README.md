@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# form-poc
 
-## Getting Started
+JSON-driven form builder, renderer, and component reference, organised as a
+[pnpm](https://pnpm.io) + [Turborepo](https://turborepo.com) monorepo.
 
-First, run the development server:
+## Layout
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+form-poc/
+├── apps/
+│   ├── poc/        # form list, builder, and preview (port 3000)
+│   └── gallery/    # component reference (port 3001)
+└── packages/
+    ├── forms/             # @hoshina-dev/forms — schema + UI components
+    ├── eslint-config/     # shared ESLint flat configs
+    └── typescript-config/ # shared tsconfig presets
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Apps
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **`poc`** — browses example form schemas from `apps/poc/data/forms/`,
+  edits them through a builder UI (Mantine + `@mantine/form`), and runs the
+  user → worker → result flow via `FormFlow`. Static export, deployable to
+  any static host.
+- **`gallery`** — one page per question type, showing the Zod-derived JSON
+  Schema, an example JSON document, and a live-bound preview. Useful when
+  authoring new form schemas or extending the renderer.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### `@hoshina-dev/forms`
 
-## Learn More
+The package both apps depend on. Exports:
 
-To learn more about Next.js, take a look at the following resources:
+- `schema.ts` — Zod schemas for every question type, plus `FormSchema`,
+  `FormSection`, `WorkerQuestion`, `FormAnswers`, etc.
+- `FormRenderer.tsx` — Mantine-based renderer (`FormRenderer` for a whole
+  section, `QuestionField` for a single question).
+- `gallery.ts` — metadata + example documents that drive the gallery app.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Apps consume it as a workspace dependency through Next.js'
+[`transpilePackages`](https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages),
+so there is no build step in the package itself.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Getting started
 
-## Deploy on Vercel
+```bash
+pnpm install
+pnpm dev          # runs both apps via turbo (poc on :3000, gallery on :3001)
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Run a single app:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm --filter poc dev
+pnpm --filter gallery dev
+```
+
+## Tasks
+
+All tasks are pipelined through Turborepo at the repo root:
+
+| Command         | What it runs                          |
+| --------------- | ------------------------------------- |
+| `pnpm dev`      | `next dev` for both apps in parallel  |
+| `pnpm build`    | `next build` for both apps            |
+| `pnpm lint`     | ESLint across apps and packages       |
+| `pnpm format`   | `eslint --fix` across the workspace   |
+| `pnpm check`    | `tsc --noEmit` across the workspace   |
+
+Scope a task to one package with `pnpm --filter <name> <task>`, e.g.
+`pnpm --filter @hoshina-dev/forms check`.
+
+## Form data
+
+`apps/poc/data/forms/*.json` is the form store. It is git-ignored — drop
+JSON files in there for local development. Examples that survive a fresh
+clone live in `apps/poc/examples/`; copy them in to seed the store:
+
+```bash
+cp apps/poc/examples/*.json apps/poc/data/forms/
+```
+
+## Deployment
+
+The GitHub Pages workflow was removed during the monorepo refactor while
+we decide how to host two apps. Each app is configured with
+`output: "export"`, so `pnpm --filter <app> build` produces a static
+`out/` directory ready for any static host.
+
+## Tech
+
+- Next.js 16 (App Router, Turbopack)
+- React 19, TypeScript 6
+- Mantine 9 (`@mantine/core`, `@mantine/form`)
+- Zod 4
+- pnpm workspaces + Turborepo 2
