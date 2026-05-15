@@ -1,0 +1,34 @@
+{
+  "name": "gallery",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "eslint",
+    "format": "eslint --fix",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hoshina-dev/forms": "workspace:*",
+    "@mantine/core": "^9.2.0",
+    "@mantine/hooks": "^9.2.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@hoshina-dev/eslint-config": "workspace:*",
+    "@hoshina-dev/typescript-config": "workspace:*",
+    "@types/node": "^24.12.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "postcss": "^8.5.14",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
+    "typescript": "^6.0.3"
+  }
+}

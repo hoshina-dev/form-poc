@@ -1,0 +1,21 @@
+{
+  "name": "@hoshina-dev/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": "./base.mjs",
+    "./next-js": "./next-js.mjs"
+  },
+  "files": [
+    "base.mjs",
+    "next-js.mjs"
+  ],
+  "dependencies": {
+    "@leomotors/config": "^2.0.0",
+    "eslint-config-next": "16.2.6"
+  },
+  "peerDependencies": {
+    "eslint": "^9"
+  }
+}

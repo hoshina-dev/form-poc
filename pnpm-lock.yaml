@@ -7,19 +7,31 @@ settings:
 importers:
 
   .:
+    devDependencies:
+      prettier:
+        specifier: ^3.8.3
+        version: 3.8.3
+      turbo:
+        specifier: ^2.9.14
+        version: 2.9.14
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  apps/gallery:
     dependencies:
+      '@hoshina-dev/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@mantine/core':
         specifier: ^9.2.0
-        version: 9.2.0(@mantine/hooks@9.2.0(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@mantine/form':
-        specifier: ^9.2.0
-        version: 9.2.0(react@19.2.6)
+        version: 9.2.1(@mantine/hooks@9.2.1(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@mantine/hooks':
         specifier: ^9.2.0
-        version: 9.2.0(react@19.2.6)
+        version: 9.2.1(react@19.2.6)
       next:
         specifier: 16.2.6
-        version: 16.2.6(@babel/core@7.29.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 16.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -30,9 +42,12 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
-      '@leomotors/config':
-        specifier: ^2.0.0
-        version: 2.0.0(@typescript-eslint/eslint-plugin@8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4)(typescript@6.0.3))(eslint@9.39.4)(typescript@6.0.3))(typescript@6.0.3)
+      '@hoshina-dev/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@hoshina-dev/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
       '@types/node':
         specifier: ^24.12.4
         version: 24.12.4
@@ -45,9 +60,6 @@ importers:
       eslint:
         specifier: ^9.39.4
         version: 9.39.4
-      eslint-config-next:
-        specifier: 16.2.6
-        version: 16.2.6(@typescript-eslint/parser@8.59.3(eslint@10.3.0)(typescript@6.0.3))(eslint@9.39.4)(typescript@6.0.3)
       postcss:
         specifier: ^8.5.14
         version: 8.5.14
@@ -57,12 +69,114 @@ importers:
       postcss-simple-vars:
         specifier: ^7.0.1
         version: 7.0.1(postcss@8.5.14)
-      prettier:
-        specifier: ^3.8.3
-        version: 3.8.3
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+
+  apps/poc:
+    dependencies:
+      '@hoshina-dev/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
+      '@mantine/core':
+        specifier: ^9.2.0
+        version: 9.2.1(@mantine/hooks@9.2.1(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@mantine/form':
+        specifier: ^9.2.0
+        version: 9.2.1(react@19.2.6)
+      '@mantine/hooks':
+        specifier: ^9.2.0
+        version: 9.2.1(react@19.2.6)
+      next:
+        specifier: 16.2.6
+        version: 16.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react:
+        specifier: 19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: 19.2.6
+        version: 19.2.6(react@19.2.6)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@hoshina-dev/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@hoshina-dev/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/node':
+        specifier: ^24.12.4
+        version: 24.12.4
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4
+      postcss:
+        specifier: ^8.5.14
+        version: 8.5.14
+      postcss-preset-mantine:
+        specifier: ^1.18.0
+        version: 1.18.0(postcss@8.5.14)
+      postcss-simple-vars:
+        specifier: ^7.0.1
+        version: 7.0.1(postcss@8.5.14)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  packages/eslint-config:
+    dependencies:
+      '@leomotors/config':
+        specifier: ^2.0.0
+        version: 2.0.0(@typescript-eslint/eslint-plugin@8.59.3(@typescript-eslint/parser@8.59.3(eslint@9.39.4)(typescript@6.0.3))(eslint@9.39.4)(typescript@6.0.3))(typescript@6.0.3)
+      eslint:
+        specifier: ^9
+        version: 9.39.4
+      eslint-config-next:
+        specifier: 16.2.6
+        version: 16.2.6(@typescript-eslint/parser@8.59.3(eslint@10.3.0)(typescript@6.0.3))(eslint@9.39.4)(typescript@6.0.3)
+
+  packages/forms:
+    devDependencies:
+      '@hoshina-dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@hoshina-dev/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@mantine/core':
+        specifier: ^9.2.0
+        version: 9.2.1(@mantine/hooks@9.2.1(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4
+      react:
+        specifier: 19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: 19.2.6
+        version: 19.2.6(react@19.2.6)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+
+  packages/typescript-config: {}
 
 packages:
 
@@ -422,20 +536,20 @@ packages:
   '@leomotors/config@2.0.0':
     resolution: {integrity: sha512-m45/d0X1YHPVpPaPqqiD6DOvrRf8GzBWtSKpNkqy/ANATb7z31myRZbICd0WRtG+NNtjxGxJix6n/SJqza/18g==}
 
-  '@mantine/core@9.2.0':
-    resolution: {integrity: sha512-r1gtKzHnZYdhskPf/MByGjSo2FmtpVltSmE26ZsPM45hHxqUr+L39P3740oha9b6nafwzQ0dJ+HLm/l43E6TDw==}
+  '@mantine/core@9.2.1':
+    resolution: {integrity: sha512-CicPg9i2dM2pGp1jj+dMiR/63OFDsPjgJke4v5+0nbfJ+C7gn4C+7ltrp4RIETDMZHcj0fFuDRG0qtbiyBxvWA==}
     peerDependencies:
-      '@mantine/hooks': 9.2.0
+      '@mantine/hooks': 9.2.1
       react: ^19.2.0
       react-dom: ^19.2.0
 
-  '@mantine/form@9.2.0':
-    resolution: {integrity: sha512-0aOdvnGXxTIV+c+LtZO+JGW3opzrbCdO5h/3YEg+eOWjcl/eW6WnmpTJN75ruXdrQSP9ZFuo+m7CVBsrp0cXMA==}
+  '@mantine/form@9.2.1':
+    resolution: {integrity: sha512-PV0dcbmsKhZkn3Ryztqp8Kb1N16v2nWXO71p4utTmN7E/lHWHO1ccj7Y72sIteWJo1YeNHzzkssaYRSnxgOvYA==}
     peerDependencies:
       react: ^19.2.0
 
-  '@mantine/hooks@9.2.0':
-    resolution: {integrity: sha512-xSt33F84+zgESHqyhJQvVTvCGN1GyQUuHIvh1cAZavXK7Uwy0Fqckno/5OP29ZNJUgu+H/jYuSluu100tMUeAQ==}
+  '@mantine/hooks@9.2.1':
+    resolution: {integrity: sha512-IX/ztVG9eWmQTRsN7G8odyW4JckNvN8qv5A2ULzXyazjtAKLuaUpuMz0c6XhRp10J0g4bVfV3rhrTgWeImqxqg==}
     peerDependencies:
       react: ^19.2.0
 
@@ -528,6 +642,36 @@ packages:
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+
+  '@turbo/darwin-64@2.9.14':
+    resolution: {integrity: sha512-t7QiPflaEyBE4oayeZtSmu4mEfjgIrcNlNNl1z1dmIVPqEdtA7+CfTf8d7KXsOGPh6aNgWjKxyvQg9uGfDQF+A==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@turbo/darwin-arm64@2.9.14':
+    resolution: {integrity: sha512-d23147mC9BsCPA9mJ0h/ubcpbRgcJBXbcG3+Vq7YLhjz3IXuvQsJ1UXH8f4MD76ZjJ4m/E4aRdJV+MW88CDfbw==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@turbo/linux-64@2.9.14':
+    resolution: {integrity: sha512-P3ZKB5tuUDdDQWuAsACGUR1qv9W7BNWxdxqVJ0kZNuNNPRaVYTPPikLcp79+GiEcW3npsR+KyP38lnQiBc5aSA==}
+    cpu: [x64]
+    os: [linux]
+
+  '@turbo/linux-arm64@2.9.14':
+    resolution: {integrity: sha512-ZRTlzcUMrrPv9ZuDzRF9n60Ym13bKeG9jDB8WjxyLhWNzV+AJQN+zdpIk3NJYf2zQsGUm1mNar2P0elRzLw25g==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@turbo/windows-64@2.9.14':
+    resolution: {integrity: sha512-exanwN6sIduZwykYeiTQj8kCmOhazP5WOz3bvXMcYtjhL6Z3iRWLewKrXCBq0bqwSP3iBMb/AerRCnHI4lx46A==}
+    cpu: [x64]
+    os: [win32]
+
+  '@turbo/windows-arm64@2.9.14':
+    resolution: {integrity: sha512-fVdCsnmYoKICsycbWuuGp6Jvi51/3G/UluFWuAUCvR8PIW5IJkAk5BM9UF8PSm0Q2IphWHFZjYEgjHsh3B9y/g==}
+    cpu: [arm64]
+    os: [win32]
 
   '@tybys/wasm-util@0.10.2':
     resolution: {integrity: sha512-RoBvJ2X0wuKlWFIjrwffGw1IqZHKQqzIchKaadZZfnNpsAYp2mM0h36JtPCjNDAHGgYez/15uMBpfGwchhiMgg==}
@@ -937,8 +1081,8 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
-  electron-to-chromium@1.5.354:
-    resolution: {integrity: sha512-JaBHwWcfIdmSAfWM5l3uwjGd431j8YEMikZ+K/2nXVuBqJKyZ0f+2h4n4JY5AyNiZmnY9qQr2RU3v9DxDmHMNg==}
+  electron-to-chromium@1.5.355:
+    resolution: {integrity: sha512-LUPZhKzZPYSPme1jEYohpkA+ybYCJztr1quAdBd7E7h3+VOBVcKkwwtBJu41nrjawrRzfb8mtMfzWozoaK0ZIQ==}
 
   emoji-regex@9.2.2:
     resolution: {integrity: sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg==}
@@ -1946,6 +2090,10 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
+  turbo@2.9.14:
+    resolution: {integrity: sha512-BQqXRr4UoWI3UPFrtznCLykYHxwxWh53iCB57x092jPMjIlW1wnm3N895g5irpiXmnxUhREBB0n6+y8BHhs4nw==}
+    hasBin: true
+
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
@@ -2435,10 +2583,10 @@ snapshots:
       - supports-color
       - typescript
 
-  '@mantine/core@9.2.0(@mantine/hooks@9.2.0(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@mantine/core@9.2.1(@mantine/hooks@9.2.1(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@floating-ui/react': 0.27.19(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@mantine/hooks': 9.2.0(react@19.2.6)
+      '@mantine/hooks': 9.2.1(react@19.2.6)
       clsx: 2.1.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
@@ -2448,14 +2596,14 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@mantine/form@9.2.0(react@19.2.6)':
+  '@mantine/form@9.2.1(react@19.2.6)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       fast-deep-equal: 3.1.3
       klona: 2.0.6
       react: 19.2.6
 
-  '@mantine/hooks@9.2.0(react@19.2.6)':
+  '@mantine/hooks@9.2.1(react@19.2.6)':
     dependencies:
       react: 19.2.6
 
@@ -2519,6 +2667,24 @@ snapshots:
   '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.1
+
+  '@turbo/darwin-64@2.9.14':
+    optional: true
+
+  '@turbo/darwin-arm64@2.9.14':
+    optional: true
+
+  '@turbo/linux-64@2.9.14':
+    optional: true
+
+  '@turbo/linux-arm64@2.9.14':
+    optional: true
+
+  '@turbo/windows-64@2.9.14':
+    optional: true
+
+  '@turbo/windows-arm64@2.9.14':
+    optional: true
 
   '@tybys/wasm-util@0.10.2':
     dependencies:
@@ -2869,7 +3035,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.10.29
       caniuse-lite: 1.0.30001792
-      electron-to-chromium: 1.5.354
+      electron-to-chromium: 1.5.355
       node-releases: 2.0.44
       update-browserslist-db: 1.2.3(browserslist@4.28.2)
 
@@ -2982,7 +3148,7 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  electron-to-chromium@1.5.354: {}
+  electron-to-chromium@1.5.355: {}
 
   emoji-regex@9.2.2: {}
 
@@ -3734,7 +3900,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  next@16.2.6(@babel/core@7.29.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  next@16.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       '@next/env': 16.2.6
       '@swc/helpers': 0.5.15
@@ -3743,7 +3909,7 @@ snapshots:
       postcss: 8.4.31
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      styled-jsx: 5.1.6(@babel/core@7.29.0)(react@19.2.6)
+      styled-jsx: 5.1.6(react@19.2.6)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.2.6
       '@next/swc-darwin-x64': 16.2.6
@@ -4169,12 +4335,10 @@ snapshots:
 
   strip-json-comments@3.1.1: {}
 
-  styled-jsx@5.1.6(@babel/core@7.29.0)(react@19.2.6):
+  styled-jsx@5.1.6(react@19.2.6):
     dependencies:
       client-only: 0.0.1
       react: 19.2.6
-    optionalDependencies:
-      '@babel/core': 7.29.0
 
   sugarss@5.0.1(postcss@8.5.14):
     dependencies:
@@ -4215,6 +4379,15 @@ snapshots:
       strip-bom: 3.0.0
 
   tslib@2.8.1: {}
+
+  turbo@2.9.14:
+    optionalDependencies:
+      '@turbo/darwin-64': 2.9.14
+      '@turbo/darwin-arm64': 2.9.14
+      '@turbo/linux-64': 2.9.14
+      '@turbo/linux-arm64': 2.9.14
+      '@turbo/windows-64': 2.9.14
+      '@turbo/windows-arm64': 2.9.14
 
   type-check@0.4.0:
     dependencies:

@@ -1,0 +1,47 @@
+{
+  "name": "@hoshina-dev/forms",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./renderer": {
+      "types": "./src/FormRenderer.tsx",
+      "default": "./src/FormRenderer.tsx"
+    },
+    "./gallery": {
+      "types": "./src/gallery.ts",
+      "default": "./src/gallery.ts"
+    },
+    "./schema": {
+      "types": "./src/schema.ts",
+      "default": "./src/schema.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint",
+    "format": "eslint --fix",
+    "check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@mantine/core": "^9.2.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@hoshina-dev/eslint-config": "workspace:*",
+    "@hoshina-dev/typescript-config": "workspace:*",
+    "@mantine/core": "^9.2.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "typescript": "^6.0.3",
+    "zod": "^4.4.3"
+  }
+}
