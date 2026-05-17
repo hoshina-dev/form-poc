@@ -14,7 +14,7 @@ export interface FormSummary {
 }
 
 function dir(): string {
-  return path.join(process.cwd(), "data", "forms");
+  return path.join(/* turbopackIgnore: true */ process.cwd(), "data", "forms");
 }
 
 async function ensureDir(): Promise<string> {

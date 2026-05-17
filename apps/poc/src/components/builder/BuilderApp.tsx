@@ -58,9 +58,9 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
           </Button>
         </Group>
 
-        <Alert color="yellow" variant="light" title="Read-only demo">
-          This deployment is static — edits are not persisted. Clone the repo
-          and run <code>pnpm dev</code> locally for a writable backend.
+        <Alert color="yellow" variant="light" title="Preview-only demo">
+          Edits in this builder are kept in the browser for live preview. Form
+          JSON is loaded by the POC server from <code>data/forms/</code>.
         </Alert>
 
         <Paper withBorder p="md" radius="md">

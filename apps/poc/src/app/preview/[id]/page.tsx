@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 
 import { FormFlow } from "@/components/FormFlow";
 import { LinkAnchor } from "@/components/LinkButton";
-import { listForms, readForm } from "@/lib/storage";
+import { readForm } from "@/lib/storage";
+
+export const dynamic = "force-dynamic";
 
 interface PreviewPageProps {
   params: Promise<{ id: string }>;
@@ -38,9 +40,4 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
       </Stack>
     </Container>
   );
-}
-
-export async function generateStaticParams() {
-  const forms = await listForms();
-  return forms.map((f) => ({ id: f.id }));
 }

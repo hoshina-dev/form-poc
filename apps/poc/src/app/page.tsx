@@ -11,6 +11,8 @@ import {
 import { LinkButton } from "@/components/LinkButton";
 import { listForms } from "@/lib/storage";
 
+export const dynamic = "force-dynamic";
+
 export default async function ListPage() {
   const forms = await listForms();
 

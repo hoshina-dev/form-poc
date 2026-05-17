@@ -1,6 +1,6 @@
 # form-poc
 
-JSON-driven form builder, renderer, and component reference, organised as a
+JSON-driven form POC, renderer, and component reference, organised as a
 [pnpm](https://pnpm.io) + [Turborepo](https://turborepo.com) monorepo.
 
 ## Layout
@@ -8,8 +8,8 @@ JSON-driven form builder, renderer, and component reference, organised as a
 ```
 form-poc/
 ├── apps/
-│   ├── poc/        # form list, builder, and preview (port 3000)
-│   └── gallery/    # component reference (port 3001)
+│   ├── poc/        # POC demo, built as a standalone Node Docker image
+│   └── gallery/    # static component reference, deployed to GitHub Pages
 └── packages/
     ├── forms/             # @hoshina-dev/forms — schema + UI components
     ├── eslint-config/     # shared ESLint flat configs
@@ -18,13 +18,15 @@ form-poc/
 
 ### Apps
 
-- **`poc`** — browses example form schemas from `apps/poc/data/forms/`,
-  edits them through a builder UI (Mantine + `@mantine/form`), and runs the
-  user → worker → result flow via `FormFlow`. Static export, deployable to
-  any static host.
-- **`gallery`** — one page per question type, showing the Zod-derived JSON
-  Schema, an example JSON document, and a live-bound preview. Useful when
-  authoring new form schemas or extending the renderer.
+- **`poc`** — POC demo that browses form schemas from
+  `apps/poc/data/forms/`, inspects them through a builder UI (Mantine +
+  `@mantine/form`), and runs the user → worker → result flow via `FormFlow`.
+  It builds with Next.js `output: "standalone"` and ships as a Docker image
+  served by the bundled Node server.
+- **`gallery`** — static component reference with one page per question type,
+  showing the Zod-derived JSON Schema, an example JSON document, and a
+  live-bound preview. It builds with Next.js `output: "export"` and deploys to
+  GitHub Pages.
 
 ### `@hoshina-dev/forms`
 
@@ -36,8 +38,7 @@ The package both apps depend on. Exports:
   section, `QuestionField` for a single question).
 - `gallery.ts` — metadata + example documents that drive the gallery app.
 
-Apps consume it as a workspace dependency through Next.js'
-[`transpilePackages`](https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages),
+Apps consume it as a workspace dependency through Next.js `transpilePackages`,
 so there is no build step in the package itself.
 
 ## Getting started
@@ -71,8 +72,8 @@ Scope a task to one package with `pnpm --filter <name> <task>`, e.g.
 
 ## Form data
 
-`apps/poc/data/forms/*.json` is the form store. It is git-ignored — drop
-JSON files in there for local development. Examples that survive a fresh
+`apps/poc/data/forms/*.json` is the local form store. It is git-ignored —
+drop JSON files in there for local development. Examples that survive a fresh
 clone live in `apps/poc/examples/`; copy them in to seed the store:
 
 ```bash
@@ -81,10 +82,24 @@ cp apps/poc/examples/*.json apps/poc/data/forms/
 
 ## Deployment
 
-The GitHub Pages workflow was removed during the monorepo refactor while
-we decide how to host two apps. Each app is configured with
-`output: "export"`, so `pnpm --filter <app> build` produces a static
-`out/` directory ready for any static host.
+- **Gallery**: `.github/workflows/deploy.yml` builds `apps/gallery` as a
+  static export and deploys `apps/gallery/out` to GitHub Pages. The workflow
+  sets `NEXT_PUBLIC_BASE_PATH=/${{ github.event.repository.name }}` so the
+  static site works under the repository path.
+- **POC**: the same workflow builds `apps/poc/Dockerfile` from the repository
+  root and pushes the image to `ghcr.io/<owner>/<repo>/poc`. The app runs the
+  Next standalone Node server on port `3000`.
+
+Build the POC image locally from the repository root:
+
+```bash
+docker build -f apps/poc/Dockerfile -t form-poc-poc .
+docker run --rm -p 3000:3000 form-poc-poc
+```
+
+The Docker image seeds `/app/apps/poc/data/forms` from
+`apps/poc/examples/`. Mount a volume at that path to provide a different form
+store.
 
 ## Tech
 
