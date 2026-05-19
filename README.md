@@ -87,8 +87,9 @@ cp apps/poc/examples/*.json apps/poc/data/forms/
   sets `NEXT_PUBLIC_BASE_PATH=/${{ github.event.repository.name }}` so the
   static site works under the repository path.
 - **POC**: the same workflow builds `apps/poc/Dockerfile` from the repository
-  root and pushes the image to `ghcr.io/<owner>/<repo>/poc`. The app runs the
-  Next standalone Node server on port `3000`.
+  root for `linux/amd64` and `linux/arm64`, then pushes the multi-arch image to
+  `ghcr.io/<owner>/form-poc-web`. The app runs the Next standalone Node server
+  on port `3000`.
 
 Build the POC image locally from the repository root:
 
