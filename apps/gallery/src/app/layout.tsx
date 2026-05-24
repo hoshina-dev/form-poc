@@ -13,7 +13,7 @@ import { GallerySidebar } from "@/components/GallerySidebar";
 import { Navbar } from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "Component gallery",
+  title: "Hoshina Form Gallery",
   description: "Every question type the form engine supports.",
 };
 

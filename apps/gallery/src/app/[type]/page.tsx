@@ -1,4 +1,8 @@
-import { findGalleryEntry, GALLERY } from "@hoshina-dev/forms";
+import {
+  findGalleryEntry,
+  GALLERY,
+  type QuestionType,
+} from "@hoshina-dev/forms";
 import {
   Badge,
   Code,
@@ -17,7 +21,7 @@ import {
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
-import { GalleryValueDisplay } from "@/components/GalleryValueDisplay";
+import { GalleryQuestionWorkbench } from "@/components/GalleryQuestionWorkbench";
 
 type JsonSchemaObject = Record<string, unknown>;
 
@@ -49,6 +53,91 @@ const FIELD_DESCRIPTIONS: Record<string, string> = {
   type: "Discriminator field that chooses the question schema and renderer.",
 };
 
+const OUTPUT_VALUE_TYPES: Record<
+  QuestionType,
+  { typeLabel: string; description: string }
+> = {
+  boolean: {
+    typeLabel: "boolean",
+    description: "Stored as true or false.",
+  },
+  "checkbox-group": {
+    typeLabel: "string[]",
+    description: "Stored as an array of selected option values.",
+  },
+  color: {
+    typeLabel: "string | undefined",
+    description:
+      "Stored as a color string in the configured format, or undefined when empty.",
+  },
+  date: {
+    typeLabel: "string | undefined",
+    description: "Stored as a yyyy-MM-dd date string, or undefined when empty.",
+  },
+  datetime: {
+    typeLabel: "string | undefined",
+    description:
+      "Stored as a yyyy-MM-ddTHH:mm datetime string, or undefined when empty.",
+  },
+  "multi-select": {
+    typeLabel: "string[]",
+    description: "Stored as an array of selected option values.",
+  },
+  number: {
+    typeLabel: "number | undefined",
+    description: "Stored as a number, or undefined when empty.",
+  },
+  password: {
+    typeLabel: "string | undefined",
+    description: "Stored as the entered string, or undefined when empty.",
+  },
+  radio: {
+    typeLabel: "string | undefined",
+    description:
+      "Stored as the selected option value, or undefined when nothing is selected.",
+  },
+  rating: {
+    typeLabel: "number | undefined",
+    description: "Stored as a number, or undefined when no rating is selected.",
+  },
+  segmented: {
+    typeLabel: "string | undefined",
+    description:
+      "Stored as the selected segment value, or undefined when empty.",
+  },
+  "select-number": {
+    typeLabel: "number | undefined",
+    description:
+      "Stored as the selected numeric option value, or undefined when empty.",
+  },
+  "select-string": {
+    typeLabel: "string | undefined",
+    description:
+      "Stored as the selected string option value, or undefined when empty.",
+  },
+  slider: {
+    typeLabel: "number | undefined",
+    description:
+      "Stored as a number after the slider changes; it may be undefined before interaction.",
+  },
+  string: {
+    typeLabel: "string | undefined",
+    description: "Stored as the entered string, or undefined when empty.",
+  },
+  tags: {
+    typeLabel: "string[]",
+    description: "Stored as an array of tag strings.",
+  },
+  textarea: {
+    typeLabel: "string | undefined",
+    description: "Stored as the entered string, or undefined when empty.",
+  },
+  time: {
+    typeLabel: "string | undefined",
+    description: "Stored as an HH:mm time string, or undefined when empty.",
+  },
+};
+
 interface PageProps {
   params: Promise<{ type: string }>;
 }
@@ -61,7 +150,7 @@ export default async function GalleryDetailPage({ params }: PageProps) {
   const jsonSchema = z.toJSONSchema(entry.zodSchema);
 
   return (
-    <Stack gap="lg" maw={900}>
+    <Stack gap="lg" maw={1100}>
       <Stack gap={4}>
         <Group gap="sm" align="center">
           <Title order={2}>{entry.label}</Title>
@@ -70,21 +159,13 @@ export default async function GalleryDetailPage({ params }: PageProps) {
           </Badge>
         </Group>
         <Text c="dimmed">{entry.description}</Text>
+        <OutputValueSummary type={entry.type} />
       </Stack>
 
-      <Paper withBorder p="md" radius="md">
-        <Title order={4} mb="sm">
-          Live preview
-        </Title>
-        <GalleryValueDisplay question={entry.example} />
-      </Paper>
-
-      <Paper withBorder p="md" radius="md">
-        <Title order={4} mb="sm">
-          Example JSON
-        </Title>
-        <Code block>{JSON.stringify(entry.example, null, 2)}</Code>
-      </Paper>
+      <GalleryQuestionWorkbench
+        example={entry.example}
+        expectedType={entry.type}
+      />
 
       <Paper withBorder p="md" radius="md">
         <Title order={4} mb="sm">
@@ -106,6 +187,9 @@ export function generateStaticParams() {
 function SchemaTable({ schema }: { schema: unknown }) {
   const schemaObject = asSchemaObject(schema);
   const properties = asSchemaObject(schemaObject?.properties);
+  const entries = Object.entries(properties ?? {});
+  const discriminator = entries.find(([name]) => name === DISCRIMINATOR_FIELD);
+  const fieldEntries = entries.filter(([name]) => name !== DISCRIMINATOR_FIELD);
   const required = new Set(
     Array.isArray(schemaObject?.required)
       ? schemaObject.required.filter((item) => typeof item === "string")
@@ -121,65 +205,135 @@ function SchemaTable({ schema }: { schema: unknown }) {
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <Table highlightOnHover verticalSpacing="sm">
-        <TableThead>
-          <TableTr>
-            <TableTh>Field</TableTh>
-            <TableTh>Type</TableTh>
-            <TableTh>Required</TableTh>
-            <TableTh>Meaning</TableTh>
-            <TableTh>Details</TableTh>
-          </TableTr>
-        </TableThead>
-        <TableTbody>
-          {Object.entries(properties).map(([name, property]) => {
-            const propertyObject = asSchemaObject(property);
-            const isDiscriminator = name === DISCRIMINATOR_FIELD;
+    <Stack gap="sm">
+      {discriminator ? (
+        <DiscriminatorSummary
+          property={discriminator[1]}
+          required={required.has(DISCRIMINATOR_FIELD)}
+        />
+      ) : null}
 
-            return (
-              <TableTr
-                key={name}
-                style={
-                  isDiscriminator
-                    ? { background: "var(--mantine-color-grape-0)" }
-                    : undefined
-                }
-              >
-                <TableTd>
-                  <Group gap="xs">
-                    <Code>{name}</Code>
-                    {isDiscriminator ? (
-                      <Badge color="grape" variant="filled" size="sm">
-                        Discriminator
-                      </Badge>
-                    ) : null}
-                  </Group>
-                </TableTd>
-                <TableTd>{describeType(propertyObject)}</TableTd>
-                <TableTd>
-                  <Badge
-                    color={required.has(name) ? "green" : "gray"}
-                    variant="light"
-                  >
-                    {required.has(name) ? "Yes" : "No"}
-                  </Badge>
-                </TableTd>
-                <TableTd>
-                  <Text size="sm">
-                    {FIELD_DESCRIPTIONS[name] ?? "Additional configuration."}
-                  </Text>
-                </TableTd>
-                <TableTd>
-                  <Text size="sm" c="dimmed">
-                    {describeDetails(name, propertyObject)}
-                  </Text>
-                </TableTd>
-              </TableTr>
-            );
-          })}
-        </TableTbody>
-      </Table>
+      <div style={{ overflowX: "auto" }}>
+        <Table highlightOnHover verticalSpacing="sm">
+          <TableThead>
+            <TableTr>
+              <TableTh>Field</TableTh>
+              <TableTh>Type</TableTh>
+              <TableTh>Required</TableTh>
+              <TableTh>Meaning</TableTh>
+              <TableTh>Details</TableTh>
+            </TableTr>
+          </TableThead>
+          <TableTbody>
+            {fieldEntries.map(([name, property]) => {
+              const propertyObject = asSchemaObject(property);
+
+              return (
+                <TableTr key={name}>
+                  <TableTd>
+                    <Group gap="xs">
+                      <Code>{name}</Code>
+                    </Group>
+                  </TableTd>
+                  <TableTd>{describeType(propertyObject)}</TableTd>
+                  <TableTd>
+                    <Badge
+                      color={required.has(name) ? "green" : "gray"}
+                      variant="light"
+                    >
+                      {required.has(name) ? "Yes" : "No"}
+                    </Badge>
+                  </TableTd>
+                  <TableTd>
+                    <Text size="sm">
+                      {FIELD_DESCRIPTIONS[name] ?? "Additional configuration."}
+                    </Text>
+                  </TableTd>
+                  <TableTd>
+                    <Text size="sm" c="dimmed">
+                      {describeDetails(name, propertyObject)}
+                    </Text>
+                  </TableTd>
+                </TableTr>
+              );
+            })}
+          </TableTbody>
+        </Table>
+      </div>
+    </Stack>
+  );
+}
+
+function OutputValueSummary({ type }: { type: QuestionType }) {
+  const output = OUTPUT_VALUE_TYPES[type];
+
+  return (
+    <div
+      style={{
+        background: "var(--mantine-color-teal-0)",
+        border: "1px solid var(--mantine-color-teal-2)",
+        borderRadius: "var(--mantine-radius-md)",
+        marginTop: "var(--mantine-spacing-xs)",
+        padding: "var(--mantine-spacing-sm)",
+      }}
+    >
+      <Stack gap={4}>
+        <Group gap="xs" wrap="wrap">
+          <Badge color="teal" variant="filled" size="sm">
+            Output value
+          </Badge>
+          <Code>{output.typeLabel}</Code>
+        </Group>
+        <Text size="sm" c="dimmed">
+          {output.description}
+        </Text>
+      </Stack>
+    </div>
+  );
+}
+
+function DiscriminatorSummary({
+  property,
+  required,
+}: {
+  property: unknown;
+  required: boolean;
+}) {
+  const propertyObject = asSchemaObject(property);
+  const constant =
+    propertyObject && "const" in propertyObject
+      ? formatValue(propertyObject.const)
+      : "Unknown";
+
+  return (
+    <div
+      style={{
+        background: "var(--mantine-color-grape-0)",
+        border: "1px solid var(--mantine-color-grape-2)",
+        borderRadius: "var(--mantine-radius-md)",
+        padding: "var(--mantine-spacing-sm)",
+      }}
+    >
+      <Stack gap={4}>
+        <Group gap="xs" wrap="wrap">
+          <Badge color="grape" variant="filled" size="sm">
+            Discriminator
+          </Badge>
+          <Code>{DISCRIMINATOR_FIELD}</Code>
+          <Text size="sm" c="dimmed">
+            constant
+          </Text>
+          <Code>{constant}</Code>
+          {required ? (
+            <Badge color="green" variant="light" size="sm">
+              Required
+            </Badge>
+          ) : null}
+        </Group>
+        <Text size="sm" c="dimmed">
+          {FIELD_DESCRIPTIONS[DISCRIMINATOR_FIELD]}
+        </Text>
+      </Stack>
     </div>
   );
 }
@@ -238,10 +392,10 @@ function describeDetails(
   if ("const" in schema) {
     if (fieldName === DISCRIMINATOR_FIELD) {
       details.push(
-        `Must be ${formatValue(schema.const)}. This constant value selects this question variant in the JSON union.`,
+        "This value selects this question variant in the JSON union.",
       );
     } else {
-      details.push(`Must be ${formatValue(schema.const)}.`);
+      details.push("Must match the constant value.");
     }
   }
 

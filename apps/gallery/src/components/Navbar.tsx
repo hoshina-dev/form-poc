@@ -14,7 +14,7 @@ export function Navbar() {
     >
       <Group justify="space-between">
         <Anchor component={Link} href="/" c="dark" underline="never">
-          <Text fw={700}>Gallery</Text>
+          <Text fw={700}>Hoshina Form Gallery</Text>
         </Anchor>
       </Group>
     </Container>
