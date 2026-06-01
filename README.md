@@ -12,8 +12,9 @@ form-poc/
 │   └── gallery/    # static component reference, deployed to GitHub Pages
 └── packages/
     ├── forms/             # @hoshina-dev/forms — schema + UI components
-    ├── eslint-config/     # shared ESLint flat configs
-    └── typescript-config/ # shared tsconfig presets
+    ├── api-client/        # @hoshina-dev/api-client — generated REST API types
+    ├── eslint-config/            # shared ESLint flat configs
+    └── typescript-config/        # shared tsconfig presets
 ```
 
 ### Apps
@@ -69,6 +70,16 @@ All tasks are pipelined through Turborepo at the repo root:
 
 Scope a task to one package with `pnpm --filter <name> <task>`, e.g.
 `pnpm --filter @hoshina-dev/forms check`.
+
+## API codegen
+
+REST API types live in `@hoshina-dev/api-client`, generated with
+[openapi-typescript](https://openapi-ts.dev/) from live service OpenAPI
+documents (Experiment Manager is OpenAPI 3.1). Run `pnpm codegen` when a
+service is reachable; unreachable services are skipped.
+
+Import generated types via namespaces, e.g.
+`ExperimentManager.Components["schemas"]["SampleSummary"]`.
 
 ## Form data
 

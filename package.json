@@ -7,7 +7,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "format": "turbo run format",
-    "check": "turbo run check"
+    "check": "turbo run check",
+    "codegen": "pnpm --filter @hoshina-dev/api-client codegen"
   },
   "devDependencies": {
     "prettier": "^3.8.3",
