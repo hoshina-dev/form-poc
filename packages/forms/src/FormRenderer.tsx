@@ -33,6 +33,7 @@ interface RenderableSection {
 interface FormRendererProps {
   section: RenderableSection;
   lockedValues?: Record<QuestionId, AnswerValue>;
+  initialValues?: FormAnswers;
   submitLabel?: string;
   onSubmit: (answers: FormAnswers) => void;
 }
@@ -56,16 +57,23 @@ function defaultFor(q: Question): AnswerValue {
 export function FormRenderer({
   section,
   lockedValues = {},
+  initialValues = {},
   submitLabel = "Submit",
   onSubmit,
 }: FormRendererProps) {
   const initialAnswers = useMemo(() => {
     const answers: FormAnswers = {};
     for (const q of section.questions) {
-      answers[q.id] = q.id in lockedValues ? lockedValues[q.id] : defaultFor(q);
+      if (q.id in lockedValues) {
+        answers[q.id] = lockedValues[q.id];
+      } else if (initialValues[q.id] !== undefined) {
+        answers[q.id] = initialValues[q.id];
+      } else {
+        answers[q.id] = defaultFor(q);
+      }
     }
     return answers;
-  }, [section, lockedValues]);
+  }, [section, lockedValues, initialValues]);
 
   const [answers, setAnswers] = useState<FormAnswers>(initialAnswers);
 

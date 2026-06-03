@@ -16,10 +16,17 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 
+import {
+  createTemplateAction,
+  deleteTemplateAction,
+  updateTemplateAction,
+} from "@/app/actions/experiment-manager";
 import { FormFlow } from "@/components/FormFlow";
 import { type FormDraft, fromDraft, toDraft } from "@/lib/builder";
+import { samplePath, templateBuilderPath } from "@/lib/routes";
 
 import { CalculationsEditor } from "./CalculationsEditor";
 import { SectionEditor } from "./SectionEditor";
@@ -27,10 +34,20 @@ import { SectionEditor } from "./SectionEditor";
 interface BuilderAppProps {
   initial: FormSchema;
   mode: "create" | "edit";
+  sampleId: string;
+  templateId?: string;
 }
 
-export function BuilderApp({ initial, mode }: BuilderAppProps) {
+export function BuilderApp({
+  initial,
+  mode,
+  sampleId,
+  templateId,
+}: BuilderAppProps) {
+  const router = useRouter();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const form = useForm<FormDraft>({
     initialValues: toDraft(initial),
@@ -46,40 +63,81 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
 
   const draftSchema = previewOpen ? safeSchema(form.values) : null;
 
+  const save = () => {
+    const parsed = safeSchema(form.values);
+    if (!parsed) {
+      setSaveError("Fix validation errors before saving.");
+      return;
+    }
+    setSaveError(null);
+    startTransition(async () => {
+      if (mode === "create") {
+        const result = await createTemplateAction(sampleId, parsed);
+        if (!result.success) {
+          setSaveError(result.error);
+          return;
+        }
+        router.push(
+          templateBuilderPath({
+            sampleId,
+            templateId: result.data.id,
+          }),
+        );
+        router.refresh();
+        return;
+      }
+      if (!templateId) return;
+      const result = await updateTemplateAction(
+        { sampleId, templateId },
+        parsed,
+      );
+      if (!result.success) {
+        setSaveError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  const remove = () => {
+    if (!templateId) return;
+    if (!window.confirm("Delete this experiment template?")) return;
+    startTransition(async () => {
+      const result = await deleteTemplateAction({ sampleId, templateId });
+      if (!result.success) {
+        setSaveError(result.error);
+        return;
+      }
+      router.push(samplePath(sampleId));
+      router.refresh();
+    });
+  };
+
   return (
     <Container size="xl" py="lg">
       <Stack gap="md">
         <Group justify="space-between">
           <Title order={2}>
-            {mode === "create" ? "New form" : `Edit: ${initial.title}`}
+            {mode === "create" ? "New template" : `Edit: ${initial.title}`}
           </Title>
-          <Button variant="subtle" component={Link} href="/">
-            Back to list
+          <Button variant="subtle" component={Link} href={samplePath(sampleId)}>
+            Back to templates
           </Button>
         </Group>
 
-        <Alert color="yellow" variant="light" title="Preview-only demo">
-          Edits in this builder are kept in the browser for live preview. Form
-          JSON is loaded by the POC server from <code>data/forms/</code>.
-        </Alert>
+        {saveError && (
+          <Alert color="red" variant="light" title="Save failed">
+            {saveError}
+          </Alert>
+        )}
 
         <Paper withBorder p="md" radius="md">
           <Stack gap="sm">
             <Title order={3}>Metadata</Title>
-            <Group grow>
-              <TextInput
-                label="ID"
-                description="Letters, digits, underscore, hyphen. Used as the filename."
-                required
-                readOnly={mode === "edit"}
-                {...form.getInputProps("id")}
-              />
-              <TextInput
-                label="Title"
-                required
-                {...form.getInputProps("title")}
-              />
-            </Group>
+            {mode === "edit" && templateId && (
+              <TextInput label="Template ID" value={templateId} readOnly />
+            )}
+            <TextInput label="Name" required {...form.getInputProps("title")} />
             <TextInput
               label="Description"
               {...form.getInputProps("description")}
@@ -99,7 +157,7 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
         <Paper withBorder p="md" radius="md">
           <Stack gap="sm">
             <div>
-              <Title order={3}>Template</Title>
+              <Title order={3}>Result template</Title>
               <Text size="sm" c="dimmed">
                 Use <code>{"{{name}}"}</code> to interpolate user, worker, and
                 calculation values.
@@ -126,6 +184,19 @@ export function BuilderApp({ initial, mode }: BuilderAppProps) {
           <Button variant="default" onClick={() => setPreviewOpen(true)}>
             Live preview
           </Button>
+          <Button onClick={save} loading={isPending}>
+            {mode === "create" ? "Create template" : "Save changes"}
+          </Button>
+          {mode === "edit" && templateId && (
+            <Button
+              color="red"
+              variant="light"
+              onClick={remove}
+              loading={isPending}
+            >
+              Delete
+            </Button>
+          )}
         </Group>
       </Stack>
 

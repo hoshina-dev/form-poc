@@ -1,6 +1,5 @@
-import { BuilderApp } from "@/components/builder/BuilderApp";
-import { emptyForm } from "@/lib/builder";
+import { redirect } from "next/navigation";
 
-export default function NewFormBuilderPage() {
-  return <BuilderApp initial={emptyForm()} mode="create" />;
+export default function LegacyBuilderIndexPage() {
+  redirect("/");
 }

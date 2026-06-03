@@ -1,74 +1,76 @@
-import {
-  Card,
-  Container,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
+import { Card, Container, Group, Stack, Text, Title } from "@mantine/core";
 
+import { ErrorPanel } from "@/components/ErrorPanel";
 import { LinkButton } from "@/components/LinkButton";
-import { listForms } from "@/lib/storage";
+import { ExperimentManagerError } from "@/lib/experiment-manager/client";
+import { fetchSamples } from "@/lib/experiment-manager/queries";
+import { samplePath } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
-export default async function ListPage() {
-  const forms = await listForms();
+function loadErrorMessage(error: unknown): string {
+  if (error instanceof ExperimentManagerError) return error.message;
+  if (error instanceof Error) return error.message;
+  return "Failed to load samples";
+}
+
+export default async function SamplesPage() {
+  let samples;
+  let error: string | null = null;
+
+  try {
+    samples = await fetchSamples();
+  } catch (err) {
+    error = loadErrorMessage(err);
+  }
+
+  if (error) {
+    return (
+      <Container size="xl" py="lg">
+        <ErrorPanel title="Samples unavailable" message={error} />
+      </Container>
+    );
+  }
 
   return (
     <Container size="xl" py="lg">
       <Stack gap="lg">
         <div>
-          <Title order={1}>Forms</Title>
+          <Title order={1}>Samples</Title>
           <Text c="dimmed">
-            Browse the example form schemas. Open one to preview it or inspect
-            its builder view.
+            Choose a sample to browse experiment templates and run multi-phase
+            forms.
           </Text>
         </div>
 
-        {forms.length === 0 ? (
-          <Paper withBorder p="xl" radius="md">
-            <Stack gap="sm" align="flex-start">
-              <Title order={3}>No forms bundled</Title>
-              <Text c="dimmed">
-                The build didn&apos;t include any form JSON. Drop files into{" "}
-                <code>data/forms/</code> and rebuild.
-              </Text>
-            </Stack>
-          </Paper>
+        {samples!.length === 0 ? (
+          <ErrorPanel
+            title="No samples"
+            message="Experiment Manager returned an empty sample list."
+          />
         ) : (
           <Stack gap="sm">
-            {forms.map((form) => (
-              <Card key={form.id} withBorder radius="md" padding="md">
+            {samples!.map((sample) => (
+              <Card key={sample.id} withBorder radius="md" padding="md">
                 <Group justify="space-between" wrap="nowrap">
                   <div style={{ minWidth: 0 }}>
-                    <Title order={4}>{form.title}</Title>
+                    <Title order={4}>{sample.name}</Title>
                     <Text size="xs" c="dimmed">
-                      id: {form.id}
+                      id: {sample.id}
                     </Text>
-                    {form.description && (
+                    {sample.description && (
                       <Text size="sm" mt={4} lineClamp={2}>
-                        {form.description}
+                        {sample.description}
                       </Text>
                     )}
                   </div>
-                  <Group gap="xs" wrap="nowrap">
-                    <LinkButton
-                      href={`/preview/${form.id}`}
-                      variant="light"
-                      size="xs"
-                    >
-                      Preview
-                    </LinkButton>
-                    <LinkButton
-                      href={`/builder/${form.id}`}
-                      variant="default"
-                      size="xs"
-                    >
-                      Inspect
-                    </LinkButton>
-                  </Group>
+                  <LinkButton
+                    href={samplePath(sample.id)}
+                    variant="light"
+                    size="xs"
+                  >
+                    Templates
+                  </LinkButton>
                 </Group>
               </Card>
             ))}

@@ -78,6 +78,9 @@ importers:
 
   apps/poc:
     dependencies:
+      '@hoshina-dev/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@hoshina-dev/forms':
         specifier: workspace:*
         version: link:../../packages/forms

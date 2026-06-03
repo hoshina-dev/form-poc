@@ -11,6 +11,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@hoshina-dev/api-client": "workspace:*",
     "@hoshina-dev/forms": "workspace:*",
     "@mantine/core": "^9.2.2",
     "@mantine/form": "^9.2.2",

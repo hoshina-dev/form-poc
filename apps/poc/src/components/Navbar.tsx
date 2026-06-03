@@ -5,16 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/", label: "List", match: (p: string) => p === "/" },
+  { href: "/", label: "Samples", match: (p: string) => p === "/" },
   {
-    href: "/builder",
-    label: "Builder",
-    match: (p: string) => p.startsWith("/builder"),
-  },
-  {
-    href: "/preview",
-    label: "Preview",
-    match: (p: string) => p.startsWith("/preview"),
+    href: "/experiments",
+    label: "Experiments",
+    match: (p: string) => p === "/experiments" || p.startsWith("/experiments/"),
   },
 ];
 
@@ -30,10 +25,14 @@ export function Navbar() {
       }}
     >
       <Group justify="space-between">
-        <Text fw={700}>FormPoc</Text>
+        <Anchor component={Link} href="/" underline="never" c="inherit">
+          <Text fw={700}>FormPoc</Text>
+        </Anchor>
         <Group gap="lg">
           {links.map((link) => {
-            const active = link.match(pathname);
+            const active =
+              link.match(pathname) ||
+              (link.href === "/" && pathname.startsWith("/samples"));
             return (
               <Anchor
                 key={link.href}
