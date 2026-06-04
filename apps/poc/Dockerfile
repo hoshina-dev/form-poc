@@ -7,6 +7,7 @@ RUN corepack enable
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY patches ./patches
 COPY apps/poc/package.json apps/poc/package.json
 COPY apps/gallery/package.json apps/gallery/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
