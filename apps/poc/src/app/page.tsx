@@ -13,7 +13,7 @@ function loadErrorMessage(): string {
 }
 
 export default async function SamplesPage() {
-  await requireSession("client");
+  await requireSession();
 
   let samples;
   let error: string | null = null;

@@ -20,7 +20,7 @@ function loadErrorMessage(): string {
 export default async function NewTemplateBuilderPage({
   params,
 }: NewTemplateBuilderPageProps) {
-  await requireSession("client");
+  await requireSession("technician");
   const { sampleId } = await params;
 
   let error: string | null = null;

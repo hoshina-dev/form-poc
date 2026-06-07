@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 import { Navbar } from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "Form Builder POC",
+  title: "Chemical Analysis",
   description: "JSON-driven form builder and renderer.",
 };
 

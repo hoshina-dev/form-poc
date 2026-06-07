@@ -10,7 +10,7 @@ import {
   fetchSample,
   fetchTemplateForm,
 } from "@/lib/experiment-manager/queries";
-import { samplePath, templateBuilderPath } from "@/lib/routes";
+import { samplePath } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -65,14 +65,9 @@ export default async function TemplatePreviewPage({
               template {templateId}
             </Text>
           </div>
-          <Group gap="md">
-            <LinkAnchor href={templateBuilderPath(ref)} size="sm">
-              Edit template
-            </LinkAnchor>
-            <LinkAnchor href={samplePath(sampleId)} size="sm">
-              Back to templates
-            </LinkAnchor>
-          </Group>
+          <LinkAnchor href={samplePath(sampleId)} size="sm">
+            Back to templates
+          </LinkAnchor>
         </Group>
         <Paper withBorder p="lg" radius="md">
           <FormFlow

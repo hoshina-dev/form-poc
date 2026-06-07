@@ -194,7 +194,7 @@ export async function createTemplateAction(
   form: FormSchema,
 ): Promise<ActionResult<FormSchema>> {
   try {
-    await requireSession("client");
+    await requireSession("technician");
     const created = await createExperimentTemplate(
       sampleId,
       formSchemaToTemplateCreate(form),
@@ -216,7 +216,7 @@ export async function updateTemplateAction(
   form: FormSchema,
 ): Promise<ActionResult<FormSchema>> {
   try {
-    await requireSession("client");
+    await requireSession("technician");
     const updated = await updateExperimentTemplate(
       ref.sampleId,
       ref.templateId,
@@ -244,7 +244,7 @@ export async function deleteTemplateAction(
   ref: TemplateRef,
 ): Promise<ActionResult<void>> {
   try {
-    await requireSession("client");
+    await requireSession("technician");
     await deleteExperimentTemplate(ref.sampleId, ref.templateId);
     revalidatePath("/");
     revalidatePath(`/samples/${ref.sampleId}`);

@@ -28,8 +28,9 @@ function loadErrorMessage(): string {
 export default async function SampleTemplatesPage({
   params,
 }: SampleTemplatesPageProps) {
-  await requireSession("client");
+  const session = await requireSession();
   const { sampleId } = await params;
+  const canManageTemplates = session.appRole === "technician";
 
   let sample;
   let templates;
@@ -75,9 +76,11 @@ export default async function SampleTemplatesPage({
               sample id: {sample!.id}
             </Text>
           </div>
-          <LinkButton href={newTemplatePath(sampleId)} variant="filled">
-            New template
-          </LinkButton>
+          {canManageTemplates && (
+            <LinkButton href={newTemplatePath(sampleId)} variant="filled">
+              New template
+            </LinkButton>
+          )}
         </Group>
 
         <div>
@@ -119,20 +122,24 @@ export default async function SampleTemplatesPage({
                       )}
                     </div>
                     <Group gap="xs" wrap="nowrap">
-                      <LinkButton
-                        href={templatePreviewPath(ref)}
-                        variant="light"
-                        size="xs"
-                      >
-                        Run
-                      </LinkButton>
-                      <LinkButton
-                        href={templateBuilderPath(ref)}
-                        variant="default"
-                        size="xs"
-                      >
-                        Edit
-                      </LinkButton>
+                      {session.appRole === "client" && (
+                        <LinkButton
+                          href={templatePreviewPath(ref)}
+                          variant="light"
+                          size="xs"
+                        >
+                          Run
+                        </LinkButton>
+                      )}
+                      {canManageTemplates && (
+                        <LinkButton
+                          href={templateBuilderPath(ref)}
+                          variant="default"
+                          size="xs"
+                        >
+                          Edit
+                        </LinkButton>
+                      )}
                     </Group>
                   </Group>
                 </Card>

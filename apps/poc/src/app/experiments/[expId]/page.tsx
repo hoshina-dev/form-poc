@@ -111,6 +111,41 @@ export default async function ExperimentDetailPage({
   const displayDescription =
     stateKind === "current" ? form.description : template.description;
   const latestTechnicianLog = runState?.technicianLogs.at(-1);
+  const statusRows = runState
+    ? [
+        { label: "Status", value: formatPhase(phase) },
+        {
+          label: "Client",
+          value: runState.createdBy
+            ? `${runState.createdBy.name} (${runState.createdBy.email})`
+            : "-",
+        },
+        {
+          label: "Client section",
+          value: answerCount(runState.state.answers.user),
+        },
+        {
+          label: "Technician section",
+          value: answerCount(runState.state.answers.worker),
+        },
+        {
+          label: "Technician changes",
+          value: String(runState.technicianLogs.length),
+        },
+        {
+          label: "Latest technician",
+          value: latestTechnicianLog
+            ? `${latestTechnicianLog.technician.name} (${formatCreatedAt(latestTechnicianLog.at)})`
+            : "-",
+        },
+        {
+          label: "Calculation result",
+          value: runState.state.result
+            ? fallback(runState.state.result.summary)
+            : "-",
+        },
+      ]
+    : [];
 
   return (
     <Container size="xl" py="lg">
@@ -183,49 +218,28 @@ export default async function ExperimentDetailPage({
             </Text>
           ) : runState ? (
             <Stack gap="md" mt="xs">
-              <Table withTableBorder withColumnBorders>
-                <tbody>
-                  <tr>
-                    <th>Status</th>
-                    <td>{formatPhase(phase)}</td>
-                  </tr>
-                  <tr>
-                    <th>Client</th>
-                    <td>
-                      {runState.createdBy
-                        ? `${runState.createdBy.name} (${runState.createdBy.email})`
-                        : "-"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Client section</th>
-                    <td>{answerCount(runState.state.answers.user)}</td>
-                  </tr>
-                  <tr>
-                    <th>Technician section</th>
-                    <td>{answerCount(runState.state.answers.worker)}</td>
-                  </tr>
-                  <tr>
-                    <th>Technician changes</th>
-                    <td>{runState.technicianLogs.length}</td>
-                  </tr>
-                  <tr>
-                    <th>Latest technician</th>
-                    <td>
-                      {latestTechnicianLog
-                        ? `${latestTechnicianLog.technician.name} (${formatCreatedAt(latestTechnicianLog.at)})`
-                        : "-"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Calculation result</th>
-                    <td>
-                      {runState.state.result
-                        ? fallback(runState.state.result.summary)
-                        : "-"}
-                    </td>
-                  </tr>
-                </tbody>
+              <Table
+                withTableBorder
+                withColumnBorders
+                striped
+                highlightOnHover
+                horizontalSpacing="md"
+                verticalSpacing="sm"
+              >
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th style={{ width: "32%" }}>Field</Table.Th>
+                    <Table.Th>Value</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {statusRows.map((row) => (
+                    <Table.Tr key={row.label}>
+                      <Table.Th scope="row">{row.label}</Table.Th>
+                      <Table.Td>{row.value}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
               </Table>
 
               <details>

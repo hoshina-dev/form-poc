@@ -19,7 +19,7 @@ function loadErrorMessage(): string {
 export default async function TemplateBuilderPage({
   params,
 }: TemplateBuilderPageProps) {
-  await requireSession("client");
+  await requireSession("technician");
   const { sampleId, templateId } = await params;
 
   let form;

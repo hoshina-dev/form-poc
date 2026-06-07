@@ -19,6 +19,11 @@ const clientLinks = [
 
 const technicianLinks = [
   {
+    href: "/",
+    label: "Templates",
+    match: (p: string) => p === "/" || p.startsWith("/samples"),
+  },
+  {
     href: "/experiments",
     label: "Assigned forms",
     match: (p: string) => p === "/experiments" || p.startsWith("/experiments/"),
@@ -50,7 +55,7 @@ export function NavbarClient({ session }: NavbarClientProps) {
           underline="never"
           c="inherit"
         >
-          <Text fw={700}>FormPoc</Text>
+          <Text fw={700}>Chemical Analysis</Text>
         </Anchor>
         <Group gap="lg">
           {session &&
