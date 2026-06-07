@@ -26,8 +26,8 @@ import {
   toTemplateSummary,
 } from "@/lib/experiment-manager/mappers";
 import {
-  fetchExperiments,
   type ExperimentListItem,
+  fetchExperiments,
 } from "@/lib/experiment-manager/queries";
 
 type ActionResult<T> =

@@ -1,4 +1,13 @@
-import { Badge, Card, Container, Group, Stack, Text, Title } from "@mantine/core";
+import {
+  Badge,
+  Button,
+  Card,
+  Container,
+  Group,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
 
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { ExperimentPhaseBadge } from "@/components/ExperimentPhaseBadge";
@@ -64,9 +73,16 @@ export default async function ExperimentsPage() {
         ) : (
           <Stack gap="sm">
             {experiments!.map((row) => {
+              const legacy = row.stateKind === "legacy";
               const resumable = isResumablePhase(row.phase);
               return (
-                <Card key={row.expId} withBorder radius="md" padding="md">
+                <Card
+                  key={row.expId}
+                  withBorder
+                  radius="md"
+                  padding="md"
+                  opacity={legacy ? 0.65 : undefined}
+                >
                   <Group
                     justify="space-between"
                     wrap="nowrap"
@@ -78,7 +94,10 @@ export default async function ExperimentsPage() {
                         <Badge variant="light" size="sm">
                           {row.sampleName}
                         </Badge>
-                        <ExperimentPhaseBadge phase={row.phase} />
+                        <ExperimentPhaseBadge
+                          phase={row.phase}
+                          stateKind={row.stateKind}
+                        />
                       </Group>
                       <Text size="sm" c="dimmed">
                         Started {formatCreatedAt(row.createdAt)}
@@ -88,7 +107,11 @@ export default async function ExperimentsPage() {
                       </Text>
                     </div>
                     <Group gap="xs" wrap="nowrap">
-                      {resumable ? (
+                      {legacy ? (
+                        <Button disabled variant="light" size="xs">
+                          Disabled
+                        </Button>
+                      ) : resumable ? (
                         <LinkButton
                           href={experimentResumePath(row.expId)}
                           variant="filled"

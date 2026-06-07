@@ -7,11 +7,7 @@ import { ResumeExperimentFlow } from "@/components/ResumeExperimentFlow";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import { fetchExperimentRun } from "@/lib/experiment-manager/queries";
 import { isResumablePhase } from "@/lib/experiment-manager/state";
-import {
-  experimentPath,
-  experimentsPath,
-  samplePath,
-} from "@/lib/routes";
+import { experimentPath, experimentsPath, samplePath } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +56,7 @@ export default async function ExperimentResumePage({
     redirect(experimentPath(expId));
   }
 
-  if (!isResumablePhase(runState.phase)) {
+  if (!isResumablePhase(runState.state.phase)) {
     redirect(experimentPath(expId));
   }
 

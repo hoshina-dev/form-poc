@@ -4,6 +4,7 @@ import {
   Button,
   Checkbox,
   ColorInput,
+  Group,
   MultiSelect,
   NumberInput,
   PasswordInput,
@@ -35,7 +36,9 @@ interface FormRendererProps {
   lockedValues?: Record<QuestionId, AnswerValue>;
   initialValues?: FormAnswers;
   submitLabel?: string;
+  saveDraftLabel?: string;
   onSubmit: (answers: FormAnswers) => void;
+  onSaveDraft?: (answers: FormAnswers) => void;
 }
 
 function defaultFor(q: Question): AnswerValue {
@@ -59,7 +62,9 @@ export function FormRenderer({
   lockedValues = {},
   initialValues = {},
   submitLabel = "Submit",
+  saveDraftLabel = "Save draft",
   onSubmit,
+  onSaveDraft,
 }: FormRendererProps) {
   const initialAnswers = useMemo(() => {
     const answers: FormAnswers = {};
@@ -113,9 +118,18 @@ export function FormRenderer({
         />
       ))}
 
-      <Button type="submit" mt="sm" style={{ alignSelf: "flex-start" }}>
-        {submitLabel}
-      </Button>
+      <Group mt="sm">
+        {onSaveDraft && (
+          <Button
+            type="button"
+            variant="light"
+            onClick={() => onSaveDraft(answers)}
+          >
+            {saveDraftLabel}
+          </Button>
+        )}
+        <Button type="submit">{submitLabel}</Button>
+      </Group>
     </Stack>
   );
 }

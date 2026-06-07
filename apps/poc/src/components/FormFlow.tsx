@@ -35,8 +35,9 @@ import { LinkAnchor } from "@/components/LinkButton";
 import { evaluateCalculations, interpolateTemplate } from "@/lib/evaluator";
 import type { TemplateRef } from "@/lib/experiment-manager/mappers";
 import {
-  phaseToStage,
+  createExperimentRunState,
   type ExperimentRunState,
+  phaseToStage,
 } from "@/lib/experiment-manager/state";
 import { experimentPath } from "@/lib/routes";
 
@@ -65,15 +66,10 @@ export function FormFlow({ onRestart, ...props }: FormFlowProps) {
     ? `resume-${props.resume.expId}-${session}`
     : `${props.form.id}-${session}`;
 
-  const handleRestart =
-    onRestart ?? (() => setSession((value) => value + 1));
+  const handleRestart = onRestart ?? (() => setSession((value) => value + 1));
 
   return (
-    <FormFlowSession
-      key={sessionKey}
-      {...props}
-      onRestart={handleRestart}
-    />
+    <FormFlowSession key={sessionKey} {...props} onRestart={handleRestart} />
   );
 }
 
@@ -90,19 +86,22 @@ function FormFlowSession({
   const skipUser = !hasUserPhase(form);
   const [stage, setStage] = useState<Stage>(() =>
     resume
-      ? phaseToStage(resume.runState.phase, skipUser)
+      ? phaseToStage(resume.runState.state.phase, skipUser)
       : skipUser
         ? 1
         : 0,
   );
   const [userAnswers, setUserAnswers] = useState<FormAnswers>(
-    () => resume?.runState.user ?? {},
+    () => resume?.runState.state.answers.user ?? {},
   );
   const [workerAnswers, setWorkerAnswers] = useState<FormAnswers>(
-    () => resume?.runState.worker ?? {},
+    () => resume?.runState.state.answers.worker ?? {},
   );
-  const [expId, setExpId] = useState<string | null>(() => resume?.expId ?? null);
+  const [expId, setExpId] = useState<string | null>(
+    () => resume?.expId ?? null,
+  );
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [persistNotice, setPersistNotice] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const startingRef = useRef(Boolean(resume?.expId));
 
@@ -110,17 +109,29 @@ function FormFlowSession({
   const templateId = experimentRef?.templateId;
 
   const persistState = useCallback(
-    async (id: string, state: ExperimentRunState) => {
+    async (id: string, state: ExperimentRunState, successMessage?: string) => {
       const result = await saveExperimentStateAction(id, state);
       if (!result.success) {
         setPersistError(result.error);
+        setPersistNotice(null);
+        return;
+      }
+      setPersistError(null);
+      if (successMessage) {
+        setPersistNotice(successMessage);
       }
     },
     [],
   );
 
   useEffect(() => {
-    if (resume?.expId || !sampleId || !templateId || expId || startingRef.current)
+    if (
+      resume?.expId ||
+      !sampleId ||
+      !templateId ||
+      expId ||
+      startingRef.current
+    )
       return;
     startingRef.current = true;
     const id = crypto.randomUUID();
@@ -129,13 +140,27 @@ function FormFlowSession({
       const result = await startExperimentAction(ref, id);
       if (result.success) {
         setExpId(id);
-        await persistState(id, { phase: skipUser ? "worker" : "user" });
+        await persistState(
+          id,
+          createExperimentRunState({
+            template: form,
+            phase: skipUser ? "worker" : "user",
+          }),
+        );
       } else {
         setPersistError(result.error);
         startingRef.current = false;
       }
     });
-  }, [sampleId, templateId, expId, skipUser, persistState, resume?.expId]);
+  }, [
+    sampleId,
+    templateId,
+    expId,
+    skipUser,
+    persistState,
+    resume?.expId,
+    form,
+  ]);
 
   const lockedValues = useMemo(() => {
     const locked: Record<QuestionId, AnswerValue> = {};
@@ -152,10 +177,12 @@ function FormFlowSession({
     setUserAnswers({});
     setWorkerAnswers({});
     setPersistError(null);
+    setPersistNotice(null);
   };
 
   const userLabel = form.userForm.title || "User";
   const workerLabel = form.workerForm.title || "Worker";
+  const canPersistDraft = Boolean(expId);
 
   return (
     <Stack gap="md">
@@ -178,6 +205,11 @@ function FormFlowSession({
           {persistError}
         </Alert>
       )}
+      {persistNotice && (
+        <Alert color="green" variant="light" title="Draft saved">
+          {persistNotice}
+        </Alert>
+      )}
 
       <Stepper active={stage} allowNextStepsSelect={false}>
         {!skipUser && <Stepper.Step label="User" description={userLabel} />}
@@ -190,12 +222,38 @@ function FormFlowSession({
           section={form.userForm}
           initialValues={userAnswers}
           submitLabel="Continue to worker phase"
+          onSaveDraft={
+            canPersistDraft
+              ? (answers) => {
+                  setUserAnswers(answers);
+                  startTransition(() =>
+                    persistState(
+                      expId!,
+                      createExperimentRunState({
+                        template: form,
+                        phase: "user",
+                        user: answers,
+                      }),
+                      "You can resume this run from the user phase.",
+                    ),
+                  );
+                }
+              : undefined
+          }
           onSubmit={(answers) => {
             setUserAnswers(answers);
+            setPersistNotice(null);
             setStage(1);
             if (expId) {
               startTransition(() =>
-                persistState(expId, { phase: "worker", user: answers }),
+                persistState(
+                  expId,
+                  createExperimentRunState({
+                    template: form,
+                    phase: "worker",
+                    user: answers,
+                  }),
+                ),
               );
             }
           }}
@@ -209,16 +267,40 @@ function FormFlowSession({
             lockedValues={lockedValues}
             initialValues={workerAnswers}
             submitLabel="Submit & calculate"
+            onSaveDraft={
+              canPersistDraft
+                ? (answers) => {
+                    setWorkerAnswers(answers);
+                    startTransition(() =>
+                      persistState(
+                        expId!,
+                        createExperimentRunState({
+                          template: form,
+                          phase: "worker",
+                          user: userAnswers,
+                          worker: answers,
+                        }),
+                        "You can resume this run from the worker phase.",
+                      ),
+                    );
+                  }
+                : undefined
+            }
             onSubmit={(answers) => {
               setWorkerAnswers(answers);
+              setPersistNotice(null);
               setStage(2);
               if (expId) {
                 startTransition(() =>
-                  persistState(expId, {
-                    phase: "worker",
-                    user: userAnswers,
-                    worker: answers,
-                  }),
+                  persistState(
+                    expId,
+                    createExperimentRunState({
+                      template: form,
+                      phase: "worker",
+                      user: userAnswers,
+                      worker: answers,
+                    }),
+                  ),
                 );
               }
             }}
@@ -285,14 +367,20 @@ function ResultView({
     if (!expId || savedRef.current) return;
     savedRef.current = true;
     startTransition(() =>
-      saveExperimentStateAction(expId, {
-        phase: "result",
-        user: userAnswers,
-        worker: workerAnswers,
-        calculations: results,
-        summary: interpolated,
-        ...(Object.keys(errors).length ? { errors } : {}),
-      }).then((result) => {
+      saveExperimentStateAction(
+        expId,
+        createExperimentRunState({
+          template: form,
+          phase: "result",
+          user: userAnswers,
+          worker: workerAnswers,
+          result: {
+            calculations: results,
+            summary: interpolated,
+            ...(Object.keys(errors).length ? { errors } : {}),
+          },
+        }),
+      ).then((result) => {
         if (!result.success) {
           setPersistError(result.error);
         }
@@ -300,6 +388,7 @@ function ResultView({
     );
   }, [
     expId,
+    form,
     userAnswers,
     workerAnswers,
     results,

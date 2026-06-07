@@ -68,12 +68,18 @@ export default async function ExperimentDetailPage({
     );
   }
 
-  const { experiment, sample, template, runState } = data!;
+  const { experiment, form, sample, template, runState, stateKind } = data!;
   const templateRef = {
     sampleId: experiment.sample_id,
     templateId: experiment.template_id,
   };
-  const resumable = isResumablePhase(runState?.phase);
+  const phase = runState?.state.phase ?? null;
+  const result = runState?.state.result;
+  const legacy = stateKind === "legacy";
+  const resumable = stateKind === "current" && isResumablePhase(phase);
+  const displayTitle = stateKind === "current" ? form.title : template.name;
+  const displayDescription =
+    stateKind === "current" ? form.description : template.description;
 
   return (
     <Container size="xl" py="lg">
@@ -84,13 +90,13 @@ export default async function ExperimentDetailPage({
               ← All experiments
             </LinkAnchor>
             <Group gap="xs" mt="xs" mb={4}>
-              <Title order={1}>{template.name}</Title>
-              <ExperimentPhaseBadge phase={runState?.phase} />
+              <Title order={1}>{displayTitle}</Title>
+              <ExperimentPhaseBadge phase={phase} stateKind={stateKind} />
             </Group>
             <Text c="dimmed">{sample.name}</Text>
-            {template.description && (
+            {displayDescription && (
               <Text size="sm" c="dimmed" mt={4}>
-                {template.description}
+                {displayDescription}
               </Text>
             )}
             <Text size="xs" c="dimmed" mt={4}>
@@ -118,16 +124,21 @@ export default async function ExperimentDetailPage({
           </Group>
         </Group>
 
-        {runState?.summary && (
+        {result?.summary && (
           <Paper withBorder p="md" radius="md">
             <Title order={4}>Summary</Title>
-            <Text mt="xs">{runState.summary}</Text>
+            <Text mt="xs">{result.summary}</Text>
           </Paper>
         )}
 
         <Paper withBorder p="md" radius="md">
           <Title order={4}>Saved state</Title>
-          {runState ? (
+          {legacy ? (
+            <Text size="sm" c="dimmed" mt="xs">
+              This experiment uses the old flat state schema, so it is disabled
+              instead of being resumed with the new template-snapshot state.
+            </Text>
+          ) : runState ? (
             <Code block mt="xs">
               {JSON.stringify(runState, null, 2)}
             </Code>

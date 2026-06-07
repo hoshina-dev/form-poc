@@ -1,16 +1,21 @@
 import "server-only";
 
 import {
+  type ExperimentSummary,
   getExperiment,
   getExperimentTemplate,
   getSample,
-  listExperimentTemplates,
   listExperiments,
+  listExperimentTemplates,
   listSamples,
-  type ExperimentSummary,
 } from "./client";
 import { templateToFormSchema, toTemplateSummary } from "./mappers";
-import { parseExperimentRunState, type ExperimentRunState } from "./state";
+import {
+  type ExperimentPhase,
+  type ExperimentStateKind,
+  getExperimentStateKind,
+  parseExperimentRunState,
+} from "./state";
 
 export interface ExperimentListItem {
   expId: string;
@@ -19,7 +24,8 @@ export interface ExperimentListItem {
   templateId: string;
   templateName: string;
   createdAt: string;
-  phase: ExperimentRunState["phase"] | null;
+  phase: ExperimentPhase | null;
+  stateKind: ExperimentStateKind;
 }
 
 export async function fetchSamples() {
@@ -80,22 +86,28 @@ export async function fetchExperiments(): Promise<ExperimentListItem[]> {
   );
 
   return experiments
-    .map((row, index) => ({
-      expId: row.exp_id,
-      sampleId: row.sample_id,
-      sampleName: sampleById.get(row.sample_id) ?? row.sample_id,
-      templateId: row.template_id,
-      templateName:
-        templateNames.get(`${row.sample_id}/${row.template_id}`) ??
-        row.template_id,
-      createdAt: row.created_at,
-      phase: parseExperimentRunState(details[index]?.state)?.phase ?? null,
-    }))
+    .map((row, index) => {
+      const runState = parseExperimentRunState(details[index]?.state);
+      return {
+        expId: row.exp_id,
+        sampleId: row.sample_id,
+        sampleName: sampleById.get(row.sample_id) ?? row.sample_id,
+        templateId: row.template_id,
+        templateName:
+          runState?.template.title ??
+          templateNames.get(`${row.sample_id}/${row.template_id}`) ??
+          row.template_id,
+        createdAt: row.created_at,
+        phase: runState?.state.phase ?? null,
+        stateKind: getExperimentStateKind(details[index]?.state),
+      };
+    })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function fetchExperimentRun(expId: string) {
   const experiment = await getExperiment(expId);
+  const runState = parseExperimentRunState(experiment.state);
   const [sample, template] = await Promise.all([
     getSample(experiment.sample_id),
     getExperimentTemplate(experiment.sample_id, experiment.template_id),
@@ -105,7 +117,8 @@ export async function fetchExperimentRun(expId: string) {
     experiment,
     sample,
     template,
-    form: templateToFormSchema(template),
-    runState: parseExperimentRunState(experiment.state),
+    form: runState?.template ?? templateToFormSchema(template),
+    runState,
+    stateKind: getExperimentStateKind(experiment.state),
   };
 }
