@@ -1,5 +1,8 @@
 import "server-only";
 
+import type { SessionPayload } from "@/lib/auth/definitions";
+
+import { canViewExperiment } from "./access";
 import {
   type ExperimentSummary,
   getExperiment,
@@ -26,6 +29,8 @@ export interface ExperimentListItem {
   createdAt: string;
   phase: ExperimentPhase | null;
   stateKind: ExperimentStateKind;
+  createdByName: string | null;
+  technicianLogCount: number;
 }
 
 export async function fetchSamples() {
@@ -67,7 +72,9 @@ async function buildTemplateNameLookup(
   return lookup;
 }
 
-export async function fetchExperiments(): Promise<ExperimentListItem[]> {
+export async function fetchExperiments(
+  session: SessionPayload,
+): Promise<ExperimentListItem[]> {
   const [{ experiments }, samples] = await Promise.all([
     listExperiments(),
     fetchSamples(),
@@ -86,8 +93,9 @@ export async function fetchExperiments(): Promise<ExperimentListItem[]> {
   );
 
   return experiments
-    .map((row, index) => {
+    .map((row, index): ExperimentListItem | null => {
       const runState = parseExperimentRunState(details[index]?.state);
+      if (!canViewExperiment(session, runState)) return null;
       return {
         expId: row.exp_id,
         sampleId: row.sample_id,
@@ -100,8 +108,11 @@ export async function fetchExperiments(): Promise<ExperimentListItem[]> {
         createdAt: row.created_at,
         phase: runState?.state.phase ?? null,
         stateKind: getExperimentStateKind(details[index]?.state),
+        createdByName: runState?.createdBy?.name ?? null,
+        technicianLogCount: runState?.technicianLogs.length ?? 0,
       };
     })
+    .filter((row): row is ExperimentListItem => row !== null)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

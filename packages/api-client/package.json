@@ -14,11 +14,12 @@
     "lint": "eslint .",
     "format": "eslint . --fix",
     "check": "tsc --noEmit",
-    "codegen": "rm -rf \"src/*.d.ts\" && sh ./ts-codegen.sh && pnpm format"
+    "codegen": "sh ./ts-codegen.sh && pnpm format"
   },
   "devDependencies": {
     "@hoshina-dev/eslint-config": "workspace:*",
     "@hoshina-dev/typescript-config": "workspace:*",
+    "@openapitools/openapi-generator-cli": "^2.34.0",
     "eslint": "^10.4.1",
     "openapi-typescript": "^7.13.0",
     "typescript": "^6.0.3"

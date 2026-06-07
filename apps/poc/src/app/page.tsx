@@ -1,27 +1,27 @@
 import { Card, Container, Group, Stack, Text, Title } from "@mantine/core";
 
-import { ErrorPanel } from "@/components/ErrorPanel";
+import { EmptyStatePanel, ErrorPanel } from "@/components/ErrorPanel";
 import { LinkButton } from "@/components/LinkButton";
-import { ExperimentManagerError } from "@/lib/experiment-manager/client";
+import { requireSession } from "@/lib/auth/dal";
 import { fetchSamples } from "@/lib/experiment-manager/queries";
 import { samplePath } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ExperimentManagerError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Failed to load samples";
+function loadErrorMessage(): string {
+  return "Samples are unavailable right now. Please try again later.";
 }
 
 export default async function SamplesPage() {
+  await requireSession("client");
+
   let samples;
   let error: string | null = null;
 
   try {
     samples = await fetchSamples();
-  } catch (err) {
-    error = loadErrorMessage(err);
+  } catch {
+    error = loadErrorMessage();
   }
 
   if (error) {
@@ -44,9 +44,9 @@ export default async function SamplesPage() {
         </div>
 
         {samples!.length === 0 ? (
-          <ErrorPanel
+          <EmptyStatePanel
             title="No samples"
-            message="Experiment Manager returned an empty sample list."
+            message="No samples are available yet."
           />
         ) : (
           <Stack gap="sm">

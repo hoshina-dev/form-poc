@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { FormFlow } from "@/components/FormFlow";
 import { LinkAnchor } from "@/components/LinkButton";
+import { requireSession, toSessionUser } from "@/lib/auth/dal";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import {
   fetchSample,
@@ -17,10 +18,8 @@ interface TemplatePreviewPageProps {
   params: Promise<{ sampleId: string; templateId: string }>;
 }
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ExperimentManagerError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Failed to load template";
+function loadErrorMessage(): string {
+  return "This template is unavailable right now. Please try again later.";
 }
 
 export default async function TemplatePreviewPage({
@@ -28,6 +27,7 @@ export default async function TemplatePreviewPage({
 }: TemplatePreviewPageProps) {
   const { sampleId, templateId } = await params;
   const ref = { sampleId, templateId };
+  const session = await requireSession("client");
 
   let sample;
   let form;
@@ -42,7 +42,7 @@ export default async function TemplatePreviewPage({
     if (err instanceof ExperimentManagerError && err.status === 404) {
       notFound();
     }
-    error = loadErrorMessage(err);
+    error = loadErrorMessage();
   }
 
   if (error) {
@@ -75,7 +75,12 @@ export default async function TemplatePreviewPage({
           </Group>
         </Group>
         <Paper withBorder p="lg" radius="md">
-          <FormFlow key={templateId} form={form!} experimentRef={ref} />
+          <FormFlow
+            key={templateId}
+            form={form!}
+            viewer={toSessionUser(session)}
+            experimentRef={ref}
+          />
         </Paper>
       </Stack>
     </Container>

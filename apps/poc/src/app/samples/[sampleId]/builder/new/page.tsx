@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { BuilderApp } from "@/components/builder/BuilderApp";
 import { ErrorPanel } from "@/components/ErrorPanel";
+import { requireSession } from "@/lib/auth/dal";
 import { emptyForm } from "@/lib/builder";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import { fetchSample } from "@/lib/experiment-manager/queries";
@@ -12,15 +13,14 @@ interface NewTemplateBuilderPageProps {
   params: Promise<{ sampleId: string }>;
 }
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ExperimentManagerError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Failed to load sample";
+function loadErrorMessage(): string {
+  return "The form builder is unavailable right now. Please try again later.";
 }
 
 export default async function NewTemplateBuilderPage({
   params,
 }: NewTemplateBuilderPageProps) {
+  await requireSession("client");
   const { sampleId } = await params;
 
   let error: string | null = null;
@@ -31,7 +31,7 @@ export default async function NewTemplateBuilderPage({
     if (err instanceof ExperimentManagerError && err.status === 404) {
       notFound();
     }
-    error = loadErrorMessage(err);
+    error = loadErrorMessage();
   }
 
   if (error) {

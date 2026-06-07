@@ -25,6 +25,7 @@ import {
   updateTemplateAction,
 } from "@/app/actions/experiment-manager";
 import { FormFlow } from "@/components/FormFlow";
+import type { SessionUser } from "@/lib/auth/definitions";
 import { type FormDraft, fromDraft, toDraft } from "@/lib/builder";
 import { samplePath, templateBuilderPath } from "@/lib/routes";
 
@@ -37,6 +38,13 @@ interface BuilderAppProps {
   sampleId: string;
   templateId?: string;
 }
+
+const previewUser: SessionUser = {
+  userId: "preview-client",
+  name: "Preview Client",
+  email: "preview@example.com",
+  appRole: "client",
+};
 
 export function BuilderApp({
   initial,
@@ -208,7 +216,7 @@ export function BuilderApp({
         title="Live preview"
       >
         {draftSchema ? (
-          <FormFlow form={draftSchema} />
+          <FormFlow form={draftSchema} viewer={previewUser} />
         ) : (
           <Alert color="red" variant="light" title="Draft is not valid">
             Fix the schema before previewing.

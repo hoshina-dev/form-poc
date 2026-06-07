@@ -4,6 +4,7 @@ import {
   Group,
   Paper,
   Stack,
+  Table,
   Text,
   Title,
 } from "@mantine/core";
@@ -13,9 +14,13 @@ import { DeleteExperimentButton } from "@/components/DeleteExperimentButton";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { ExperimentPhaseBadge } from "@/components/ExperimentPhaseBadge";
 import { LinkAnchor, LinkButton } from "@/components/LinkButton";
+import { requireSession } from "@/lib/auth/dal";
+import {
+  canResumeExperiment,
+  canViewExperiment,
+} from "@/lib/experiment-manager/access";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import { fetchExperimentRun } from "@/lib/experiment-manager/queries";
-import { isResumablePhase } from "@/lib/experiment-manager/state";
 import {
   experimentPath,
   experimentResumePath,
@@ -30,10 +35,8 @@ interface ExperimentDetailPageProps {
   params: Promise<{ expId: string }>;
 }
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ExperimentManagerError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Failed to load experiment";
+function loadErrorMessage(): string {
+  return "This experiment is unavailable right now. Please try again later.";
 }
 
 function formatCreatedAt(iso: string): string {
@@ -43,10 +46,33 @@ function formatCreatedAt(iso: string): string {
   });
 }
 
+function formatPhase(phase: string | null): string {
+  switch (phase) {
+    case "user":
+      return "Waiting for client";
+    case "worker":
+      return "Waiting for technician";
+    case "result":
+      return "Completed";
+    default:
+      return "Not started";
+  }
+}
+
+function answerCount(answers: Record<string, unknown> | undefined): string {
+  const count = Object.keys(answers ?? {}).length;
+  return count === 1 ? "1 answer" : `${count} answers`;
+}
+
+function fallback(value: string | undefined): string {
+  return value?.trim() || "-";
+}
+
 export default async function ExperimentDetailPage({
   params,
 }: ExperimentDetailPageProps) {
   const { expId } = await params;
+  const session = await requireSession();
 
   let data;
   let error: string | null = null;
@@ -57,7 +83,7 @@ export default async function ExperimentDetailPage({
     if (err instanceof ExperimentManagerError && err.status === 404) {
       notFound();
     }
-    error = loadErrorMessage(err);
+    error = loadErrorMessage();
   }
 
   if (error) {
@@ -76,10 +102,15 @@ export default async function ExperimentDetailPage({
   const phase = runState?.state.phase ?? null;
   const result = runState?.state.result;
   const legacy = stateKind === "legacy";
-  const resumable = stateKind === "current" && isResumablePhase(phase);
+  const resumable =
+    stateKind === "current" && canResumeExperiment(session, runState);
+  if (!canViewExperiment(session, runState)) {
+    notFound();
+  }
   const displayTitle = stateKind === "current" ? form.title : template.name;
   const displayDescription =
     stateKind === "current" ? form.description : template.description;
+  const latestTechnicianLog = runState?.technicianLogs.at(-1);
 
   return (
     <Container size="xl" py="lg">
@@ -102,6 +133,14 @@ export default async function ExperimentDetailPage({
             <Text size="xs" c="dimmed" mt={4}>
               Started {formatCreatedAt(experiment.created_at)} · id: {expId}
             </Text>
+            {runState?.createdBy && (
+              <Text size="xs" c="dimmed" mt={4}>
+                Client: {runState.createdBy.name}
+                {runState.technicianLogs.length > 0
+                  ? ` · technician changes: ${runState.technicianLogs.length}`
+                  : ""}
+              </Text>
+            )}
           </div>
           <Group gap="xs">
             {resumable && (
@@ -113,14 +152,18 @@ export default async function ExperimentDetailPage({
                 Resume
               </LinkButton>
             )}
-            <LinkButton
-              href={templatePreviewPath(templateRef)}
-              variant="light"
-              size="xs"
-            >
-              New run
-            </LinkButton>
-            <DeleteExperimentButton expId={expId} />
+            {session.appRole === "client" && (
+              <LinkButton
+                href={templatePreviewPath(templateRef)}
+                variant="light"
+                size="xs"
+              >
+                New run
+              </LinkButton>
+            )}
+            {session.appRole === "client" && phase === "user" && (
+              <DeleteExperimentButton expId={expId} />
+            )}
           </Group>
         </Group>
 
@@ -132,16 +175,70 @@ export default async function ExperimentDetailPage({
         )}
 
         <Paper withBorder p="md" radius="md">
-          <Title order={4}>Saved state</Title>
+          <Title order={4}>Form status</Title>
           {legacy ? (
             <Text size="sm" c="dimmed" mt="xs">
               This experiment uses the old flat state schema, so it is disabled
               instead of being resumed with the new template-snapshot state.
             </Text>
           ) : runState ? (
-            <Code block mt="xs">
-              {JSON.stringify(runState, null, 2)}
-            </Code>
+            <Stack gap="md" mt="xs">
+              <Table withTableBorder withColumnBorders>
+                <tbody>
+                  <tr>
+                    <th>Status</th>
+                    <td>{formatPhase(phase)}</td>
+                  </tr>
+                  <tr>
+                    <th>Client</th>
+                    <td>
+                      {runState.createdBy
+                        ? `${runState.createdBy.name} (${runState.createdBy.email})`
+                        : "-"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Client section</th>
+                    <td>{answerCount(runState.state.answers.user)}</td>
+                  </tr>
+                  <tr>
+                    <th>Technician section</th>
+                    <td>{answerCount(runState.state.answers.worker)}</td>
+                  </tr>
+                  <tr>
+                    <th>Technician changes</th>
+                    <td>{runState.technicianLogs.length}</td>
+                  </tr>
+                  <tr>
+                    <th>Latest technician</th>
+                    <td>
+                      {latestTechnicianLog
+                        ? `${latestTechnicianLog.technician.name} (${formatCreatedAt(latestTechnicianLog.at)})`
+                        : "-"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Calculation result</th>
+                    <td>
+                      {runState.state.result
+                        ? fallback(runState.state.result.summary)
+                        : "-"}
+                    </td>
+                  </tr>
+                </tbody>
+              </Table>
+
+              <details>
+                <summary>
+                  <Text component="span" size="sm" fw={600}>
+                    View raw state JSON
+                  </Text>
+                </summary>
+                <Code block mt="xs">
+                  {JSON.stringify(runState, null, 2)}
+                </Code>
+              </details>
+            </Stack>
           ) : (
             <Text size="sm" c="dimmed" mt="xs">
               This experiment has no recognized run state yet.{" "}

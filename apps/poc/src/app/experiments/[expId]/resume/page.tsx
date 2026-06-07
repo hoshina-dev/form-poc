@@ -4,9 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { LinkAnchor } from "@/components/LinkButton";
 import { ResumeExperimentFlow } from "@/components/ResumeExperimentFlow";
+import { requireSession, toSessionUser } from "@/lib/auth/dal";
+import { canResumeExperiment } from "@/lib/experiment-manager/access";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import { fetchExperimentRun } from "@/lib/experiment-manager/queries";
-import { isResumablePhase } from "@/lib/experiment-manager/state";
 import { experimentPath, experimentsPath, samplePath } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
@@ -15,16 +16,15 @@ interface ExperimentResumePageProps {
   params: Promise<{ expId: string }>;
 }
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ExperimentManagerError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Failed to load experiment";
+function loadErrorMessage(): string {
+  return "This experiment is unavailable right now. Please try again later.";
 }
 
 export default async function ExperimentResumePage({
   params,
 }: ExperimentResumePageProps) {
   const { expId } = await params;
+  const session = await requireSession();
 
   let data;
   let error: string | null = null;
@@ -35,7 +35,7 @@ export default async function ExperimentResumePage({
     if (err instanceof ExperimentManagerError && err.status === 404) {
       notFound();
     }
-    error = loadErrorMessage(err);
+    error = loadErrorMessage();
   }
 
   if (error) {
@@ -56,7 +56,7 @@ export default async function ExperimentResumePage({
     redirect(experimentPath(expId));
   }
 
-  if (!isResumablePhase(runState.state.phase)) {
+  if (!canResumeExperiment(session, runState)) {
     redirect(experimentPath(expId));
   }
 
@@ -90,6 +90,7 @@ export default async function ExperimentResumePage({
             experimentRef={templateRef}
             expId={expId}
             runState={runState}
+            viewer={toSessionUser(session)}
           />
         </Paper>
       </Stack>

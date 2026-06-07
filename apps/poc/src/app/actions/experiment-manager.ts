@@ -3,6 +3,12 @@
 import type { FormSchema } from "@hoshina-dev/forms";
 import { revalidatePath } from "next/cache";
 
+import { requireSession } from "@/lib/auth/dal";
+import type { SessionPayload } from "@/lib/auth/definitions";
+import {
+  canResumeExperiment,
+  canViewExperiment,
+} from "@/lib/experiment-manager/access";
 import {
   createExperiment,
   createExperimentTemplate,
@@ -29,6 +35,11 @@ import {
   type ExperimentListItem,
   fetchExperiments,
 } from "@/lib/experiment-manager/queries";
+import {
+  type ExperimentActor,
+  type ExperimentRunState,
+  parseExperimentRunState,
+} from "@/lib/experiment-manager/state";
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -36,12 +47,104 @@ type ActionResult<T> =
 
 function actionError(error: unknown, fallback: string): ActionResult<never> {
   if (error instanceof ExperimentManagerError) {
-    return { success: false, error: error.message };
+    return { success: false, error: fallback };
   }
   if (error instanceof Error) {
-    return { success: false, error: error.message };
+    return { success: false, error: fallback };
   }
   return { success: false, error: fallback };
+}
+
+function actorFromSession(session: SessionPayload): ExperimentActor {
+  return {
+    id: session.userId,
+    name: session.name,
+    email: session.email,
+  };
+}
+
+function stateRecord(state: ExperimentRunState): Record<string, unknown> {
+  return state as unknown as Record<string, unknown>;
+}
+
+function normalizeClientState(
+  session: SessionPayload,
+  existingState: ExperimentRunState | null,
+  nextState: ExperimentRunState,
+): ActionResult<ExperimentRunState> {
+  if (nextState.state.phase === "result") {
+    return {
+      success: false,
+      error: "Clients cannot submit calculation results",
+    };
+  }
+  if (
+    existingState?.createdBy &&
+    existingState.createdBy.id !== session.userId
+  ) {
+    return { success: false, error: "You can only edit your own form" };
+  }
+  if (existingState && existingState.state.phase !== "user") {
+    return {
+      success: false,
+      error: "This form was already submitted to technicians",
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      ...nextState,
+      createdBy: existingState?.createdBy ?? actorFromSession(session),
+      technicianLogs: existingState?.technicianLogs ?? [],
+    },
+  };
+}
+
+function normalizeTechnicianState(
+  session: SessionPayload,
+  existingState: ExperimentRunState | null,
+  nextState: ExperimentRunState,
+): ActionResult<ExperimentRunState> {
+  if (!existingState || existingState.state.phase !== "worker") {
+    return {
+      success: false,
+      error: "This form is not ready for technician edits",
+    };
+  }
+  if (
+    nextState.state.phase !== "worker" &&
+    nextState.state.phase !== "result"
+  ) {
+    return {
+      success: false,
+      error: "Technicians can only save or complete technician forms",
+    };
+  }
+
+  const action = nextState.state.phase === "result" ? "submit" : "save-draft";
+  return {
+    success: true,
+    data: {
+      ...nextState,
+      createdBy: existingState.createdBy,
+      technicianLogs: [
+        ...existingState.technicianLogs,
+        {
+          technician: actorFromSession(session),
+          action,
+          at: new Date().toISOString(),
+        },
+      ],
+      state: {
+        ...nextState.state,
+        answers: {
+          ...nextState.state.answers,
+          user: existingState.state.answers.user,
+        },
+      },
+    },
+  };
 }
 
 async function listAllTemplateSummaries(): Promise<TemplateSummary[]> {
@@ -91,6 +194,7 @@ export async function createTemplateAction(
   form: FormSchema,
 ): Promise<ActionResult<FormSchema>> {
   try {
+    await requireSession("client");
     const created = await createExperimentTemplate(
       sampleId,
       formSchemaToTemplateCreate(form),
@@ -112,6 +216,7 @@ export async function updateTemplateAction(
   form: FormSchema,
 ): Promise<ActionResult<FormSchema>> {
   try {
+    await requireSession("client");
     const updated = await updateExperimentTemplate(
       ref.sampleId,
       ref.templateId,
@@ -139,6 +244,7 @@ export async function deleteTemplateAction(
   ref: TemplateRef,
 ): Promise<ActionResult<void>> {
   try {
+    await requireSession("client");
     await deleteExperimentTemplate(ref.sampleId, ref.templateId);
     revalidatePath("/");
     revalidatePath(`/samples/${ref.sampleId}`);
@@ -154,6 +260,7 @@ export async function startExperimentAction(
   expId: string,
 ): Promise<ActionResult<{ expId: string }>> {
   try {
+    await requireSession("client");
     await createExperiment({
       exp_id: expId,
       sample_id: ref.sampleId,
@@ -172,7 +279,22 @@ export async function saveExperimentStateAction(
   state: Record<string, unknown>,
 ): Promise<ActionResult<void>> {
   try {
-    await updateExperiment(expId, { state });
+    const session = await requireSession();
+    const nextState = parseExperimentRunState(state);
+    if (!nextState) {
+      return { success: false, error: "Invalid experiment state" };
+    }
+
+    const experiment = await getExperiment(expId);
+    const existingState = parseExperimentRunState(experiment.state);
+    const normalized =
+      session.appRole === "client"
+        ? normalizeClientState(session, existingState, nextState)
+        : normalizeTechnicianState(session, existingState, nextState);
+
+    if (!normalized.success) return normalized;
+
+    await updateExperiment(expId, { state: stateRecord(normalized.data) });
     revalidatePath("/experiments");
     revalidatePath(`/experiments/${expId}`);
     revalidatePath(`/experiments/${expId}/resume`);
@@ -186,7 +308,11 @@ export async function getExperimentAction(
   expId: string,
 ): Promise<ActionResult<Awaited<ReturnType<typeof getExperiment>>>> {
   try {
+    const session = await requireSession();
     const data = await getExperiment(expId);
+    if (!canViewExperiment(session, parseExperimentRunState(data.state))) {
+      return { success: false, error: "Experiment not found" };
+    }
     return { success: true, data };
   } catch (error) {
     return actionError(error, "Failed to load experiment");
@@ -197,6 +323,16 @@ export async function deleteExperimentAction(
   expId: string,
 ): Promise<ActionResult<void>> {
   try {
+    const session = await requireSession();
+    const experiment = await getExperiment(expId);
+    const runState = parseExperimentRunState(experiment.state);
+    if (
+      session.appRole !== "client" ||
+      !canViewExperiment(session, runState) ||
+      !canResumeExperiment(session, runState)
+    ) {
+      return { success: false, error: "Experiment not found" };
+    }
     await deleteExperiment(expId);
     revalidatePath("/experiments");
     return { success: true, data: undefined };
@@ -209,7 +345,8 @@ export async function listExperimentsAction(): Promise<
   ActionResult<ExperimentListItem[]>
 > {
   try {
-    const data = await fetchExperiments();
+    const session = await requireSession();
+    const data = await fetchExperiments(session);
     return { success: true, data };
   } catch (error) {
     return actionError(error, "Failed to list experiments");

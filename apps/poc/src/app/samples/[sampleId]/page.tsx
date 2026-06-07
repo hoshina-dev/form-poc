@@ -1,8 +1,9 @@
 import { Card, Container, Group, Stack, Text, Title } from "@mantine/core";
 import { notFound } from "next/navigation";
 
-import { ErrorPanel } from "@/components/ErrorPanel";
+import { EmptyStatePanel, ErrorPanel } from "@/components/ErrorPanel";
 import { LinkAnchor, LinkButton } from "@/components/LinkButton";
+import { requireSession } from "@/lib/auth/dal";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import {
   fetchSample,
@@ -20,15 +21,14 @@ interface SampleTemplatesPageProps {
   params: Promise<{ sampleId: string }>;
 }
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ExperimentManagerError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Failed to load templates";
+function loadErrorMessage(): string {
+  return "Templates are unavailable right now. Please try again later.";
 }
 
 export default async function SampleTemplatesPage({
   params,
 }: SampleTemplatesPageProps) {
+  await requireSession("client");
   const { sampleId } = await params;
 
   let sample;
@@ -44,7 +44,7 @@ export default async function SampleTemplatesPage({
     if (err instanceof ExperimentManagerError && err.status === 404) {
       notFound();
     }
-    error = loadErrorMessage(err);
+    error = loadErrorMessage();
   }
 
   if (error) {
@@ -88,9 +88,9 @@ export default async function SampleTemplatesPage({
         </div>
 
         {templates!.length === 0 ? (
-          <ErrorPanel
-            title="No templates"
-            message="This sample has no experiment templates yet."
+          <EmptyStatePanel
+            title="No forms"
+            message="This sample does not have any forms yet."
           />
         ) : (
           <Stack gap="sm">

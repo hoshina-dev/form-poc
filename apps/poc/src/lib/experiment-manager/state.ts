@@ -1,7 +1,7 @@
 import { FormAnswers, FormSchema } from "@hoshina-dev/forms";
 import { z } from "zod";
 
-export const EXPERIMENT_RUN_STATE_SCHEMA_VERSION = 1;
+export const EXPERIMENT_RUN_STATE_SCHEMA_VERSION = 2;
 
 function stripNullFields(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -29,22 +29,50 @@ const ExperimentRunResult = z
 
 export type ExperimentRunResult = z.infer<typeof ExperimentRunResult>;
 
+const ExperimentActor = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+  })
+  .strict();
+
+const TechnicianLog = z
+  .object({
+    technician: ExperimentActor,
+    action: z.enum(["save-draft", "submit"]),
+    at: z.string(),
+  })
+  .strict();
+
+const ExperimentRunPhaseState = z
+  .object({
+    phase: z.enum(["user", "worker", "result"]),
+    answers: z
+      .object({
+        user: FormAnswers.optional(),
+        worker: FormAnswers.optional(),
+      })
+      .strict(),
+    result: ExperimentRunResult.optional(),
+  })
+  .strict();
+
+const ExperimentRunStateV1 = z
+  .object({
+    schemaVersion: z.literal(1),
+    template: TemplateSnapshot,
+    state: ExperimentRunPhaseState,
+  })
+  .strict();
+
 export const ExperimentRunState = z
   .object({
     schemaVersion: z.literal(EXPERIMENT_RUN_STATE_SCHEMA_VERSION),
     template: TemplateSnapshot,
-    state: z
-      .object({
-        phase: z.enum(["user", "worker", "result"]),
-        answers: z
-          .object({
-            user: FormAnswers.optional(),
-            worker: FormAnswers.optional(),
-          })
-          .strict(),
-        result: ExperimentRunResult.optional(),
-      })
-      .strict(),
+    createdBy: ExperimentActor.optional(),
+    technicianLogs: z.array(TechnicianLog).default([]),
+    state: ExperimentRunPhaseState,
   })
   .strict();
 
@@ -52,10 +80,14 @@ export const ExperimentRunState = z
 export type ExperimentRunState = z.infer<typeof ExperimentRunState>;
 export type ExperimentPhase = ExperimentRunState["state"]["phase"];
 export type ExperimentStateKind = "current" | "legacy" | "missing";
+export type ExperimentActor = z.infer<typeof ExperimentActor>;
+export type TechnicianLog = z.infer<typeof TechnicianLog>;
 
 interface CreateExperimentRunStateInput {
   template: FormSchema;
   phase: ExperimentPhase;
+  createdBy?: ExperimentActor;
+  technicianLogs?: TechnicianLog[];
   user?: FormAnswers;
   worker?: FormAnswers;
   result?: ExperimentRunResult;
@@ -64,6 +96,8 @@ interface CreateExperimentRunStateInput {
 export function createExperimentRunState({
   template,
   phase,
+  createdBy,
+  technicianLogs = [],
   user,
   worker,
   result,
@@ -71,6 +105,8 @@ export function createExperimentRunState({
   return {
     schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
     template: TemplateSnapshot.parse(template),
+    ...(createdBy ? { createdBy } : {}),
+    technicianLogs,
     state: {
       phase,
       answers: {
@@ -86,7 +122,19 @@ export function parseExperimentRunState(
   state: Record<string, unknown> | undefined,
 ): ExperimentRunState | null {
   const result = ExperimentRunState.safeParse(state);
-  return result.success ? result.data : null;
+  if (result.success) return result.data;
+
+  const v1 = ExperimentRunStateV1.safeParse(state);
+  if (v1.success) {
+    return {
+      schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
+      template: v1.data.template,
+      technicianLogs: [],
+      state: v1.data.state,
+    };
+  }
+
+  return null;
 }
 
 export function getExperimentStateKind(

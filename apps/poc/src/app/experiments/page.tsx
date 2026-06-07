@@ -9,12 +9,11 @@ import {
   Title,
 } from "@mantine/core";
 
-import { ErrorPanel } from "@/components/ErrorPanel";
+import { EmptyStatePanel, ErrorPanel } from "@/components/ErrorPanel";
 import { ExperimentPhaseBadge } from "@/components/ExperimentPhaseBadge";
 import { LinkAnchor, LinkButton } from "@/components/LinkButton";
-import { ExperimentManagerError } from "@/lib/experiment-manager/client";
+import { requireSession } from "@/lib/auth/dal";
 import { fetchExperiments } from "@/lib/experiment-manager/queries";
-import { isResumablePhase } from "@/lib/experiment-manager/state";
 import {
   experimentPath,
   experimentResumePath,
@@ -23,10 +22,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function loadErrorMessage(error: unknown): string {
-  if (error instanceof ExperimentManagerError) return error.message;
-  if (error instanceof Error) return error.message;
-  return "Failed to load experiments";
+function loadErrorMessage(): string {
+  return "Experiments are unavailable right now. Please try again later.";
 }
 
 function formatCreatedAt(iso: string): string {
@@ -37,13 +34,14 @@ function formatCreatedAt(iso: string): string {
 }
 
 export default async function ExperimentsPage() {
+  const session = await requireSession();
   let experiments;
   let error: string | null = null;
 
   try {
-    experiments = await fetchExperiments();
-  } catch (err) {
-    error = loadErrorMessage(err);
+    experiments = await fetchExperiments(session);
+  } catch {
+    error = loadErrorMessage();
   }
 
   if (error) {
@@ -60,21 +58,29 @@ export default async function ExperimentsPage() {
         <div>
           <Title order={1}>Experiments</Title>
           <Text c="dimmed">
-            Live runs started from template preview. Resume unfinished runs or
-            open completed ones for details.
+            {session.appRole === "technician"
+              ? "Forms submitted by clients and ready for technician work."
+              : "Your saved forms. Client drafts can be resumed until submitted to technicians."}
           </Text>
         </div>
 
         {experiments!.length === 0 ? (
-          <ErrorPanel
+          <EmptyStatePanel
             title="No experiments yet"
-            message="Run a template from a sample to create your first experiment."
+            message={
+              session.appRole === "technician"
+                ? "No client-submitted forms are ready for technicians."
+                : "Run a template from a sample to create your first form."
+            }
           />
         ) : (
           <Stack gap="sm">
             {experiments!.map((row) => {
               const legacy = row.stateKind === "legacy";
-              const resumable = isResumablePhase(row.phase);
+              const resumable =
+                session.appRole === "technician"
+                  ? row.phase === "worker"
+                  : row.phase === "user";
               return (
                 <Card
                   key={row.expId}
@@ -102,6 +108,14 @@ export default async function ExperimentsPage() {
                       <Text size="sm" c="dimmed">
                         Started {formatCreatedAt(row.createdAt)}
                       </Text>
+                      {row.createdByName && (
+                        <Text size="xs" c="dimmed" mt={4}>
+                          Client: {row.createdByName}
+                          {row.technicianLogCount > 0
+                            ? ` · technician changes: ${row.technicianLogCount}`
+                            : ""}
+                        </Text>
+                      )}
                       <Text size="xs" c="dimmed" mt={4}>
                         id: {row.expId}
                       </Text>
@@ -128,16 +142,18 @@ export default async function ExperimentsPage() {
                           View
                         </LinkButton>
                       )}
-                      <LinkButton
-                        href={templatePreviewPath({
-                          sampleId: row.sampleId,
-                          templateId: row.templateId,
-                        })}
-                        variant="default"
-                        size="xs"
-                      >
-                        New run
-                      </LinkButton>
+                      {session.appRole === "client" && (
+                        <LinkButton
+                          href={templatePreviewPath({
+                            sampleId: row.sampleId,
+                            templateId: row.templateId,
+                          })}
+                          variant="default"
+                          size="xs"
+                        >
+                          New run
+                        </LinkButton>
+                      )}
                     </Group>
                   </Group>
                 </Card>
@@ -146,9 +162,11 @@ export default async function ExperimentsPage() {
           </Stack>
         )}
 
-        <LinkAnchor href="/" size="sm">
-          ← All samples
-        </LinkAnchor>
+        {session.appRole === "client" && (
+          <LinkAnchor href="/" size="sm">
+            ← All samples
+          </LinkAnchor>
+        )}
       </Stack>
     </Container>
   );

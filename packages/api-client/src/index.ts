@@ -5,3 +5,11 @@ export namespace ExperimentManager {
   export type Components = import("./experiment-manager").components;
   export type Operations = import("./experiment-manager").operations;
 }
+
+export type { UserDetailResponse, UserResponse } from "./custapi";
+export {
+  Configuration as CustApiConfiguration,
+  ResponseError as CustApiResponseError,
+  OrganizationsApi,
+  UsersApi,
+} from "./custapi";

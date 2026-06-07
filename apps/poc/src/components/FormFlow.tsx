@@ -32,6 +32,7 @@ import {
   startExperimentAction,
 } from "@/app/actions/experiment-manager";
 import { LinkAnchor } from "@/components/LinkButton";
+import type { SessionUser } from "@/lib/auth/definitions";
 import { evaluateCalculations, interpolateTemplate } from "@/lib/evaluator";
 import type { TemplateRef } from "@/lib/experiment-manager/mappers";
 import {
@@ -45,6 +46,7 @@ type Stage = 0 | 1 | 2;
 
 interface FormFlowProps {
   form: FormSchema;
+  viewer: SessionUser;
   /** When set, creates an experiment instance and persists phase state via BFF. */
   experimentRef?: TemplateRef;
   /** When set, continues an existing experiment from saved state. */
@@ -79,6 +81,7 @@ interface FormFlowSessionProps extends FormFlowProps {
 
 function FormFlowSession({
   form,
+  viewer,
   experimentRef,
   resume,
   onRestart,
@@ -107,6 +110,21 @@ function FormFlowSession({
 
   const sampleId = experimentRef?.sampleId;
   const templateId = experimentRef?.templateId;
+  const isClient = viewer.appRole === "client";
+  const isTechnician = viewer.appRole === "technician";
+  const createdBy = useMemo(
+    () =>
+      resume?.runState.createdBy ?? {
+        id: viewer.userId,
+        name: viewer.name,
+        email: viewer.email,
+      },
+    [resume?.runState.createdBy, viewer.email, viewer.name, viewer.userId],
+  );
+  const technicianLogs = useMemo(
+    () => resume?.runState.technicianLogs ?? [],
+    [resume?.runState.technicianLogs],
+  );
 
   const persistState = useCallback(
     async (id: string, state: ExperimentRunState, successMessage?: string) => {
@@ -144,6 +162,8 @@ function FormFlowSession({
           id,
           createExperimentRunState({
             template: form,
+            createdBy,
+            technicianLogs,
             phase: skipUser ? "worker" : "user",
           }),
         );
@@ -160,6 +180,8 @@ function FormFlowSession({
     persistState,
     resume?.expId,
     form,
+    createdBy,
+    technicianLogs,
   ]);
 
   const lockedValues = useMemo(() => {
@@ -171,14 +193,6 @@ function FormFlowSession({
     }
     return locked;
   }, [form.workerForm.questions, userAnswers]);
-
-  const backToUser = () => {
-    setStage(0);
-    setUserAnswers({});
-    setWorkerAnswers({});
-    setPersistError(null);
-    setPersistNotice(null);
-  };
 
   const userLabel = form.userForm.title || "User";
   const workerLabel = form.workerForm.title || "Worker";
@@ -212,16 +226,16 @@ function FormFlowSession({
       )}
 
       <Stepper active={stage} allowNextStepsSelect={false}>
-        {!skipUser && <Stepper.Step label="User" description={userLabel} />}
-        <Stepper.Step label="Worker" description={workerLabel} />
+        {!skipUser && <Stepper.Step label="Client" description={userLabel} />}
+        <Stepper.Step label="Technician" description={workerLabel} />
         <Stepper.Step label="Result" description="Computed output" />
       </Stepper>
 
-      {stage === 0 && !skipUser && (
+      {stage === 0 && !skipUser && isClient && (
         <FormRenderer
           section={form.userForm}
           initialValues={userAnswers}
-          submitLabel="Continue to worker phase"
+          submitLabel="Submit to technician"
           onSaveDraft={
             canPersistDraft
               ? (answers) => {
@@ -231,6 +245,8 @@ function FormFlowSession({
                       expId!,
                       createExperimentRunState({
                         template: form,
+                        createdBy,
+                        technicianLogs,
                         phase: "user",
                         user: answers,
                       }),
@@ -250,6 +266,8 @@ function FormFlowSession({
                   expId,
                   createExperimentRunState({
                     template: form,
+                    createdBy,
+                    technicianLogs,
                     phase: "worker",
                     user: answers,
                   }),
@@ -260,7 +278,9 @@ function FormFlowSession({
         />
       )}
 
-      {stage === 1 && (
+      {stage === 1 && isClient && <WaitingForTechnician expId={expId} />}
+
+      {stage === 1 && isTechnician && (
         <Stack gap="md">
           <FormRenderer
             section={form.workerForm}
@@ -276,6 +296,8 @@ function FormFlowSession({
                         expId!,
                         createExperimentRunState({
                           template: form,
+                          createdBy,
+                          technicianLogs,
                           phase: "worker",
                           user: userAnswers,
                           worker: answers,
@@ -290,30 +312,8 @@ function FormFlowSession({
               setWorkerAnswers(answers);
               setPersistNotice(null);
               setStage(2);
-              if (expId) {
-                startTransition(() =>
-                  persistState(
-                    expId,
-                    createExperimentRunState({
-                      template: form,
-                      phase: "worker",
-                      user: userAnswers,
-                      worker: answers,
-                    }),
-                  ),
-                );
-              }
             }}
           />
-          {!skipUser && (
-            <Button
-              variant="subtle"
-              onClick={backToUser}
-              style={{ alignSelf: "flex-start" }}
-            >
-              Back to user phase
-            </Button>
-          )}
         </Stack>
       )}
 
@@ -323,10 +323,27 @@ function FormFlowSession({
           userAnswers={userAnswers}
           workerAnswers={workerAnswers}
           expId={expId}
-          onRestart={onRestart}
+          onRestart={viewer.appRole === "client" ? onRestart : undefined}
         />
       )}
     </Stack>
+  );
+}
+
+function WaitingForTechnician({ expId }: { expId: string | null }) {
+  return (
+    <Paper withBorder p="md" radius="md">
+      <Title order={4}>Submitted to technician</Title>
+      <Text mt="xs" c="dimmed">
+        Your part is locked. A technician can now review and complete the
+        technician section.
+      </Text>
+      {expId && (
+        <Text size="sm" mt="xs">
+          <LinkAnchor href={experimentPath(expId)}>View saved form</LinkAnchor>
+        </Text>
+      )}
+    </Paper>
   );
 }
 
@@ -335,7 +352,7 @@ interface ResultViewProps {
   userAnswers: FormAnswers;
   workerAnswers: FormAnswers;
   expId: string | null;
-  onRestart: () => void;
+  onRestart?: () => void;
 }
 
 function ResultView({
@@ -432,9 +449,11 @@ function ResultView({
         </Alert>
       )}
 
-      <Group>
-        <Button onClick={onRestart}>Start over</Button>
-      </Group>
+      {onRestart && (
+        <Group>
+          <Button onClick={onRestart}>Start over</Button>
+        </Group>
+      )}
     </Stack>
   );
 }

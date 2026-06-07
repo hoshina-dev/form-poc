@@ -8,8 +8,8 @@ import type {
 type PhaseBadgeKey = ExperimentPhase | "legacy" | "unknown";
 
 const PHASE_LABELS: Record<PhaseBadgeKey, string> = {
-  user: "User phase",
-  worker: "Worker phase",
+  user: "Client phase",
+  worker: "Technician phase",
   result: "Complete",
   legacy: "Legacy state",
   unknown: "No saved state",
