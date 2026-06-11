@@ -14,6 +14,7 @@ import {
   createExperimentTemplate,
   deleteExperiment,
   deleteExperimentTemplate,
+  downloadReport,
   ExperimentManagerError,
   generateReport,
   getExperiment,
@@ -44,6 +45,12 @@ import {
   type ExperimentRunState,
   parseExperimentRunState,
 } from "@/lib/experiment-manager/state";
+import {
+  advanceTicketTo,
+  createTicket,
+  findTicketByExpId,
+} from "@/lib/ticketing/client";
+import type { TicketStatus } from "@/lib/ticketing/status";
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -68,13 +75,19 @@ function actorFromSession(session: SessionPayload): ExperimentActor {
 }
 
 function injectAnswers(
-  form: { title?: string | null; description?: string | null; questions: unknown[] },
+  form: {
+    title?: string | null;
+    description?: string | null;
+    questions: unknown[];
+  },
   answers: Record<string, unknown> | undefined,
 ): WorkerForm {
   return {
     title: form.title,
     description: form.description,
-    questions: (form.questions as Array<{ id: string; [key: string]: unknown }>).map(
+    questions: (
+      form.questions as Array<{ id: string; [key: string]: unknown }>
+    ).map(
       (q) =>
         ({
           ...q,
@@ -85,8 +98,12 @@ function injectAnswers(
 }
 
 function buildExperimentUpdateBody(state: ExperimentRunState) {
-  const workerAnswers = state.state.answers.worker as Record<string, unknown> | undefined;
-  const userAnswers = state.state.answers.user as Record<string, unknown> | undefined;
+  const workerAnswers = state.state.answers.worker as
+    | Record<string, unknown>
+    | undefined;
+  const userAnswers = state.state.answers.user as
+    | Record<string, unknown>
+    | undefined;
   return {
     workerForm: injectAnswers(state.template.workerForm, workerAnswers),
     calculations: state.template.calculations,
@@ -285,14 +302,68 @@ export async function deleteTemplateAction(
   }
 }
 
-/** Preview run — create a live experiment instance from a template */
+/**
+ * Best-effort ticket lifecycle advance tied to the experiment phase. Failures
+ * here must never break the form flow, so everything is swallowed.
+ */
+async function advanceTicketForPhase(
+  expId: string,
+  appRole: SessionPayload["appRole"],
+  phase: ExperimentRunState["state"]["phase"],
+): Promise<void> {
+  let target: TicketStatus | null = null;
+  if (appRole === "client" && phase === "worker") {
+    target = "PENDING";
+  } else if (appRole === "technician" && phase === "worker") {
+    target = "EXPERIMENTING";
+  } else if (appRole === "technician" && phase === "result") {
+    target = "FINALIZING";
+  }
+  if (!target) return;
+
+  try {
+    const ticket = await findTicketByExpId(expId);
+    if (ticket?.id) {
+      await advanceTicketTo(ticket.id, target);
+    }
+  } catch {
+    // ticketing lifecycle is advisory in the POC — ignore failures
+  }
+}
+
+/**
+ * Client requests an analysis: opens a ticket in the ticketing service, then
+ * materialises the experiment in the experiment manager using the ticket's
+ * experiment-template slot id as the experiment id.
+ */
 export async function startExperimentAction(
   ref: TemplateRef,
-  expId: string,
 ): Promise<ActionResult<{ expId: string }>> {
   try {
-    await requireSession("client");
+    const session = await requireSession("client");
+    if (!session.organizationId) {
+      return {
+        success: false,
+        error:
+          "Your account is not linked to an organization, so a ticket cannot be created.",
+      };
+    }
+
     const template = await getExperimentTemplate(ref.sampleId, ref.templateId);
+    const ticket = await createTicket({
+      userId: session.userId,
+      organizationId: session.organizationId,
+      experimentTemplateId: template.lineage_id,
+    });
+
+    const expId = ticket.experimentTemplate?.id;
+    if (!expId) {
+      return {
+        success: false,
+        error: "Ticket was created without an experiment slot.",
+      };
+    }
+
     await createExperiment({
       exp_id: expId,
       sample_id: ref.sampleId,
@@ -301,7 +372,7 @@ export async function startExperimentAction(
     revalidatePath("/experiments");
     return { success: true, data: { expId } };
   } catch (error) {
-    return actionError(error, "Failed to start experiment");
+    return actionError(error, "Failed to create ticket and start experiment");
   }
 }
 
@@ -327,6 +398,11 @@ export async function saveExperimentStateAction(
     if (!normalized.success) return normalized;
 
     await updateExperiment(expId, buildExperimentUpdateBody(normalized.data));
+    await advanceTicketForPhase(
+      expId,
+      session.appRole,
+      normalized.data.state.phase,
+    );
     revalidatePath("/experiments");
     revalidatePath(`/experiments/${expId}`);
     revalidatePath(`/experiments/${expId}/resume`);
@@ -417,9 +493,29 @@ export async function generateReportAction(
   try {
     await requireSession();
     await generateReport(expId);
+    try {
+      const ticket = await findTicketByExpId(expId);
+      if (ticket?.id) {
+        await advanceTicketTo(ticket.id, "CLOSED");
+      }
+    } catch {
+      // ticketing lifecycle is advisory in the POC — ignore failures
+    }
     revalidatePath(`/experiments/${expId}`);
     return { success: true, data: undefined };
   } catch (error) {
     return actionError(error, "Failed to queue report generation");
+  }
+}
+
+export async function downloadReportAction(
+  expId: string,
+): Promise<ActionResult<{ url: string }>> {
+  try {
+    await requireSession();
+    const { url } = await downloadReport(expId);
+    return { success: true, data: { url } };
+  } catch (error) {
+    return actionError(error, "The report is not ready to download yet");
   }
 }

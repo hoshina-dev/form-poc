@@ -7,6 +7,17 @@ import { LoginFormSchema, type LoginFormState } from "@/lib/auth/definitions";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { usersApi } from "@/lib/custapi/client";
 
+async function resolveOrganizationId(
+  userId: string,
+): Promise<string | undefined> {
+  try {
+    const memberships = await usersApi.usersIdIdOrganizationsGet(userId);
+    return memberships.find((m) => m.organizationId)?.organizationId;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function login(
   _state: LoginFormState,
   formData: FormData,
@@ -43,6 +54,7 @@ export async function login(
     email: user.email,
     avatarUrl: user.avatarUrl,
     custapiRole: user.role,
+    organizationId: await resolveOrganizationId(user.id),
     appRole,
   });
 

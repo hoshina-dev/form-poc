@@ -129,7 +129,7 @@ export default async function SampleTemplatesPage({
                           variant="light"
                           size="xs"
                         >
-                          Run
+                          Request analysis
                         </LinkButton>
                       )}
                       {canManageTemplates && (

@@ -1,4 +1,5 @@
 import {
+  Badge,
   Code,
   Container,
   Group,
@@ -19,6 +20,7 @@ import { DeleteExperimentButton } from "@/components/DeleteExperimentButton";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { ExperimentPhaseBadge } from "@/components/ExperimentPhaseBadge";
 import { LinkAnchor, LinkButton } from "@/components/LinkButton";
+import { ReportPanel } from "@/components/ReportPanel";
 import { requireSession } from "@/lib/auth/dal";
 import {
   canResumeExperiment,
@@ -33,6 +35,7 @@ import {
   samplePath,
   templatePreviewPath,
 } from "@/lib/routes";
+import { ticketStatusColor, ticketStatusLabel } from "@/lib/ticketing/status";
 
 export const dynamic = "force-dynamic";
 
@@ -99,13 +102,19 @@ export default async function ExperimentDetailPage({
     );
   }
 
-  const { experiment, form, sample, template, runState, stateKind } = data!;
+  const { experiment, form, sample, template, ticket, runState, stateKind } =
+    data!;
   const templateRef = {
     sampleId: experiment.sample_id,
     templateId: experiment.template_id,
   };
   const phase = runState?.state.phase ?? null;
   const result = runState?.state.result;
+  const reportStatus = (experiment.report_status as string | null) ?? null;
+  const reportGeneratedAt =
+    (experiment.report_generated_at as string | null) ?? null;
+  const canGenerateReport =
+    session.appRole === "technician" && phase === "result";
   const legacy = stateKind === "legacy";
   const resumable =
     stateKind === "current" && canResumeExperiment(session, runState);
@@ -118,6 +127,7 @@ export default async function ExperimentDetailPage({
   const latestTechnicianLog = runState?.technicianLogs.at(-1);
   const statusRows = runState
     ? [
+        { label: "Ticket status", value: ticketStatusLabel(ticket?.status) },
         { label: "Status", value: formatPhase(phase) },
         {
           label: "Client",
@@ -163,6 +173,11 @@ export default async function ExperimentDetailPage({
             <Group gap="xs" mt="xs" mb={4}>
               <Title order={1}>{displayTitle}</Title>
               <ExperimentPhaseBadge phase={phase} stateKind={stateKind} />
+              {ticket?.status && (
+                <Badge color={ticketStatusColor(ticket.status)} variant="light">
+                  {ticketStatusLabel(ticket.status)}
+                </Badge>
+              )}
             </Group>
             <Text c="dimmed">{sample.name}</Text>
             {displayDescription && (
@@ -212,6 +227,15 @@ export default async function ExperimentDetailPage({
             <Title order={4}>Summary</Title>
             <Text mt="xs">{result.summary}</Text>
           </Paper>
+        )}
+
+        {(phase === "result" || reportStatus) && (
+          <ReportPanel
+            expId={expId}
+            reportStatus={reportStatus}
+            reportGeneratedAt={reportGeneratedAt}
+            canGenerate={canGenerateReport}
+          />
         )}
 
         <Paper withBorder p="md" radius="md">

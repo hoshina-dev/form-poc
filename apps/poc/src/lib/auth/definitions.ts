@@ -9,6 +9,7 @@ export interface SessionPayload {
   email: string;
   avatarUrl?: string;
   custapiRole?: string;
+  organizationId?: string;
   appRole: AppRole;
   expiresAt: Date;
 }

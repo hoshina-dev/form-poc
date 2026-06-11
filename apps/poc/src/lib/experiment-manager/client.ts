@@ -53,8 +53,32 @@ export async function emFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type SampleSummary =
   ExperimentManager.Components["schemas"]["SampleSummary"];
+
+/**
+ * The experiment manager serialises the form snapshot (userForm / workerForm /
+ * calculations / template) as free-form additional properties, so the
+ * generated `ExperimentTemplateDetail` / `ExperimentDetail` schemas type them
+ * as `unknown`. These bridging types re-expose the snapshot shape the POC
+ * relies on without touching the generated codegen.
+ */
+export interface FormSnapshotSection {
+  title?: string | null;
+  description?: string | null;
+  questions: Array<{ id: string; [key: string]: unknown }>;
+}
+
+interface ExperimentSnapshotFields {
+  name?: string;
+  description?: string | null;
+  userForm?: FormSnapshotSection | null;
+  workerForm: FormSnapshotSection;
+  calculations: Record<string, string>;
+  template: string;
+}
+
 export type ExperimentTemplateDetail =
-  ExperimentManager.Components["schemas"]["ExperimentTemplateDetail"];
+  ExperimentManager.Components["schemas"]["ExperimentTemplateDetail"] &
+    ExperimentSnapshotFields;
 export type ExperimentTemplateSummary =
   ExperimentManager.Components["schemas"]["ExperimentTemplateSummary"];
 export type ExperimentTemplateCreate =
@@ -62,11 +86,11 @@ export type ExperimentTemplateCreate =
 export type ExperimentTemplateUpdate =
   ExperimentManager.Components["schemas"]["ExperimentTemplateUpdate"];
 export type ExperimentDetail =
-  ExperimentManager.Components["schemas"]["ExperimentDetail"];
+  ExperimentManager.Components["schemas"]["ExperimentDetail"] &
+    ExperimentSnapshotFields & { title: string };
 export type ExperimentSummary =
   ExperimentManager.Components["schemas"]["ExperimentSummary"];
-export type WorkerForm =
-  ExperimentManager.Components["schemas"]["WorkerForm"];
+export type WorkerForm = ExperimentManager.Components["schemas"]["WorkerForm"];
 
 export async function listSamples() {
   return emFetch<{ samples: SampleSummary[] }>("/api/samples");
@@ -199,9 +223,12 @@ export async function getTemplateHistory(sampleId: string, lineageId: string) {
 }
 
 export async function generateReport(expId: string) {
-  return emFetch<{ status: string }>(`/api/experiments/${expId}/report/generate`, {
-    method: "POST",
-  });
+  return emFetch<{ status: string }>(
+    `/api/experiments/${expId}/report/generate`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 export async function downloadReport(expId: string) {

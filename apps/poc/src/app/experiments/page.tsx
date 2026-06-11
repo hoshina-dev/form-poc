@@ -19,6 +19,7 @@ import {
   experimentResumePath,
   templatePreviewPath,
 } from "@/lib/routes";
+import { ticketStatusColor, ticketStatusLabel } from "@/lib/ticketing/status";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,15 @@ export default async function ExperimentsPage() {
                           phase={row.phase}
                           stateKind={row.stateKind}
                         />
+                        {row.ticketStatus && (
+                          <Badge
+                            color={ticketStatusColor(row.ticketStatus)}
+                            variant="light"
+                            size="sm"
+                          >
+                            {ticketStatusLabel(row.ticketStatus)}
+                          </Badge>
+                        )}
                       </Group>
                       <Text size="sm" c="dimmed">
                         Started {formatCreatedAt(row.createdAt)}

@@ -152,14 +152,14 @@ function FormFlowSession({
     )
       return;
     startingRef.current = true;
-    const id = crypto.randomUUID();
     const ref = { sampleId, templateId };
     startTransition(async () => {
-      const result = await startExperimentAction(ref, id);
+      const result = await startExperimentAction(ref);
       if (result.success) {
-        setExpId(id);
+        const newExpId = result.data.expId;
+        setExpId(newExpId);
         await persistState(
-          id,
+          newExpId,
           createExperimentRunState({
             template: form,
             createdBy,

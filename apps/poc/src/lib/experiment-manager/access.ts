@@ -14,8 +14,11 @@ export function canViewExperiment(
   runState: ExperimentRunState | null,
 ): boolean {
   if (!runState) return false;
+  // Clients follow their own request through every phase, including the
+  // finished result and generated PDF. The experiment list is scoped to the
+  // client's own tickets, so phase no longer gates visibility for them.
   if (session.appRole === "client") {
-    return runState.state.phase === "user";
+    return true;
   }
   return runState.state.phase === "worker" || runState.state.phase === "result";
 }

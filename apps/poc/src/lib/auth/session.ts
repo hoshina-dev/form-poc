@@ -44,6 +44,7 @@ export async function createSession(user: {
   email: string;
   avatarUrl?: string;
   custapiRole?: string;
+  organizationId?: string;
   appRole: SessionPayload["appRole"];
 }): Promise<void> {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
@@ -53,6 +54,7 @@ export async function createSession(user: {
     email: user.email,
     avatarUrl: user.avatarUrl,
     custapiRole: user.custapiRole,
+    organizationId: user.organizationId,
     appRole: user.appRole,
     expiresAt,
   });

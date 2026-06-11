@@ -1,9 +1,14 @@
 import "server-only";
 
 import type { FormAnswers } from "@hoshina-dev/forms";
-import type { SessionPayload } from "@/lib/auth/definitions";
 
-import { canViewExperiment } from "./access";
+import type { SessionPayload } from "@/lib/auth/definitions";
+import {
+  findTicketByExpId,
+  listTickets,
+  type Ticket,
+} from "@/lib/ticketing/client";
+
 import {
   type ExperimentDetail,
   type ExperimentSummary,
@@ -16,10 +21,10 @@ import {
 } from "./client";
 import { templateToFormSchema, toTemplateSummary } from "./mappers";
 import {
+  EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
   type ExperimentPhase,
   type ExperimentRunState,
   type ExperimentStateKind,
-  EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
 } from "./state";
 
 export interface ExperimentListItem {
@@ -33,6 +38,24 @@ export interface ExperimentListItem {
   stateKind: ExperimentStateKind;
   createdByName: string | null;
   technicianLogCount: number;
+  ticketStatus: string | null;
+}
+
+function isExperimentVisible(
+  session: SessionPayload,
+  runState: ExperimentRunState | null,
+  ticket: Ticket | null,
+  hasTickets: boolean,
+): boolean {
+  if (!runState) return false;
+  if (session.appRole === "client") {
+    if (ticket) return ticket.userId === session.userId;
+    // Ticket data is available but none matched this experiment → not ours.
+    if (hasTickets) return false;
+    // Ticketing unavailable: fall back to phase-based visibility.
+    return runState.state.phase === "user" || runState.state.phase === "result";
+  }
+  return runState.state.phase === "worker" || runState.state.phase === "result";
 }
 
 function extractAnswersFromQuestions(
@@ -93,10 +116,15 @@ export function deriveRunStateFromDetail(
     const formSchema = templateToFormSchema(templateLike);
 
     const userAnswers = extractAnswersFromQuestions(
-      detail.userForm?.questions as Array<{ id: string; [key: string]: unknown }> | undefined,
+      detail.userForm?.questions as
+        | Array<{ id: string; [key: string]: unknown }>
+        | undefined,
     );
     const workerAnswers = extractAnswersFromQuestions(
-      detail.workerForm.questions as Array<{ id: string; [key: string]: unknown }>,
+      detail.workerForm.questions as Array<{
+        id: string;
+        [key: string]: unknown;
+      }>,
     );
 
     const phase = derivePhase(detail);
@@ -164,6 +192,20 @@ export async function fetchExperiments(
     listExperiments(),
     fetchSamples(),
   ]);
+
+  let tickets: Ticket[] = [];
+  try {
+    tickets = await listTickets();
+  } catch {
+    tickets = [];
+  }
+  const ticketByExpId = new Map<string, Ticket>();
+  for (const ticket of tickets) {
+    if (ticket.experimentTemplate?.id) {
+      ticketByExpId.set(ticket.experimentTemplate.id, ticket);
+    }
+  }
+
   const sampleById = new Map(samples.map((sample) => [sample.id, sample.name]));
   const templateNames = await buildTemplateNameLookup(experiments);
 
@@ -181,7 +223,10 @@ export async function fetchExperiments(
     .map((row, index): ExperimentListItem | null => {
       const detail = details[index];
       const runState = detail ? deriveRunStateFromDetail(detail) : null;
-      if (!canViewExperiment(session, runState)) return null;
+      const ticket = ticketByExpId.get(row.id) ?? null;
+      if (!isExperimentVisible(session, runState, ticket, tickets.length > 0)) {
+        return null;
+      }
       return {
         expId: row.id,
         sampleId: row.sample_id,
@@ -196,6 +241,7 @@ export async function fetchExperiments(
         stateKind: detail ? "current" : "missing",
         createdByName: runState?.createdBy?.name ?? null,
         technicianLogCount: runState?.technicianLogs.length ?? 0,
+        ticketStatus: ticket?.status ?? null,
       };
     })
     .filter((row): row is ExperimentListItem => row !== null)
@@ -210,10 +256,18 @@ export async function fetchExperimentRun(expId: string) {
     getExperimentTemplate(experiment.sample_id, experiment.template_id),
   ]);
 
+  let ticket: Ticket | null = null;
+  try {
+    ticket = await findTicketByExpId(expId);
+  } catch {
+    // ticketing service is advisory in the POC — ignore lookup failures
+  }
+
   return {
     experiment,
     sample,
     template,
+    ticket,
     form: runState?.template ?? templateToFormSchema(template),
     runState,
     stateKind: (runState ? "current" : "missing") as ExperimentStateKind,
