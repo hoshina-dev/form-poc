@@ -68,11 +68,79 @@ export interface paths {
     };
     /** Get Experiment Template */
     get: operations["get_experiment_template_api_samples__sample_id__experiments__template_id__get"];
-    /** Update Experiment Template */
-    put: operations["update_experiment_template_api_samples__sample_id__experiments__template_id__put"];
+    put?: never;
     post?: never;
     /** Delete Experiment Template */
     delete: operations["delete_experiment_template_api_samples__sample_id__experiments__template_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/samples/{sample_id}/experiments/{lineage_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update Experiment Template */
+    put: operations["update_experiment_template_api_samples__sample_id__experiments__lineage_id__put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/samples/{sample_id}/experiments/{lineage_id}/history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Experiment Template History */
+    get: operations["get_experiment_template_history_api_samples__sample_id__experiments__lineage_id__history_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/samples/{sample_id}/experiments/{template_id}/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Pdf Template */
+    get: operations["get_pdf_template_api_samples__sample_id__experiments__template_id__pdf_get"];
+    put?: never;
+    post?: never;
+    /** Delete Pdf Template */
+    delete: operations["delete_pdf_template_api_samples__sample_id__experiments__template_id__pdf_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/samples/{sample_id}/experiments/{lineage_id}/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Upsert Pdf Template */
+    put: operations["upsert_pdf_template_api_samples__sample_id__experiments__lineage_id__pdf_put"];
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -115,6 +183,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/experiments/{exp_id}/report/generate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Generate Report */
+    post: operations["generate_report_api_experiments__exp_id__report_generate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/experiments/{exp_id}/report/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Download Report */
+    get: operations["download_report_api_experiments__exp_id__report_download_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -122,9 +224,9 @@ export interface components {
     /**
      * ExperimentCreate
      * @example {
-     *       "exp_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-     *       "sample_id": "a1b2c3d4-0002-0002-0002-000000000002",
-     *       "template_id": "d59a46b2-28a5-4243-b894-c6ecf6309d02"
+     *       "exp_id": "7b1e39a5-86e2-433f-a194-397061316cb6",
+     *       "lineage_id": "dd949e81-22ea-46b0-aa04-c0c80d22a9a2",
+     *       "sample_id": "a1b2c3d4-0002-0002-0002-000000000002"
      *     }
      */
     ExperimentCreate: {
@@ -161,27 +263,19 @@ export interface components {
        * Format: uuid
        */
       template_id: string;
-      /** Title */
-      title: string;
-      userForm?: components["schemas"]["WorkerForm"] | null;
-      workerForm: components["schemas"]["WorkerForm"];
-      /** Calculations */
-      calculations: {
-        [key: string]: string;
-      };
-      /** Template */
-      template: string;
       /** Report Status */
-      report_status: string | null;
+      report_status?: string | null;
       /** Report R2 Key */
-      report_r2_key: string | null;
+      report_r2_key?: string | null;
       /** Report Generated At */
-      report_generated_at: string | null;
+      report_generated_at?: string | null;
       /**
        * Created At
        * Format: date-time
        */
       created_at: string;
+    } & {
+      [key: string]: unknown;
     };
     /** ExperimentSummary */
     ExperimentSummary: {
@@ -201,7 +295,7 @@ export interface components {
        */
       template_id: string;
       /** Report Status */
-      report_status: string | null;
+      report_status?: string | null;
       /**
        * Created At
        * Format: date-time
@@ -212,16 +306,30 @@ export interface components {
      * ExperimentTemplateCreate
      * @example {
      *       "calculations": {
-     *         "fuse_corr": "fuse_correction || 0",
-     *         "gcv_cal_g": "Math.round((water_equivalent * temp_rise - fuse_corr) / sample_mass)",
-     *         "gcv_kj_kg": "Math.round(gcv_cal_g * 4.1868)"
+     *         "ash_mass": "mass_after_ash - crucible_mass",
+     *         "ash_pct": "Math.round(1000 * ash_mass / sample_mass) / 10",
+     *         "fixed_carbon_pct": "Math.round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10",
+     *         "moisture_loss": "crucible_mass + sample_mass - mass_after_moisture",
+     *         "moisture_pct": "Math.round(1000 * moisture_loss / sample_mass) / 10",
+     *         "volatile_loss": "mass_after_moisture - mass_after_volatile",
+     *         "volatile_pct": "Math.round(1000 * volatile_loss / sample_mass) / 10"
      *       },
-     *       "description": "Determine gross calorific value by bomb calorimetry",
-     *       "name": "Calorific Value (GCV)",
-     *       "template": "GCV = {{gcv_cal_g}} cal/g ({{gcv_kj_kg}} kJ/kg)",
+     *       "description": "Determine moisture, ash, volatile matter, and fixed carbon content",
+     *       "template": "Moisture = {{moisture_pct}}% | Volatile Matter = {{volatile_pct}}% | Ash = {{ash_pct}}% | Fixed Carbon = {{fixed_carbon_pct}}%",
+     *       "title": "Proximate Analysis",
      *       "workerForm": {
-     *         "description": "Record bomb calorimeter readings.",
+     *         "description": "Record masses at each stage of the proximate analysis procedure.",
      *         "questions": [
+     *           {
+     *             "default": 20,
+     *             "id": "crucible_mass",
+     *             "label": "Crucible mass (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number"
+     *           },
      *           {
      *             "default": 1,
      *             "id": "sample_mass",
@@ -233,37 +341,37 @@ export interface components {
      *             "type": "number"
      *           },
      *           {
-     *             "default": 2426,
-     *             "id": "water_equivalent",
-     *             "label": "Water equivalent of calorimeter (cal/°C)",
-     *             "max": 5000,
-     *             "min": 1000,
-     *             "required": true,
-     *             "step": 0.1,
-     *             "type": "number"
-     *           },
-     *           {
-     *             "default": 2.5,
-     *             "id": "temp_rise",
-     *             "label": "Temperature rise (°C)",
-     *             "max": 10,
+     *             "default": 20.8,
+     *             "id": "mass_after_moisture",
+     *             "label": "Mass after moisture drying at 105°C (g)",
+     *             "max": 200,
      *             "min": 0,
      *             "required": true,
      *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 2,
-     *             "id": "fuse_correction",
-     *             "label": "Fuse wire correction (cal)",
-     *             "max": 100,
+     *             "default": 20.5,
+     *             "id": "mass_after_volatile",
+     *             "label": "Mass after volatile matter removal at 900°C (g)",
+     *             "max": 200,
      *             "min": 0,
-     *             "required": false,
-     *             "step": 0.1,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number"
+     *           },
+     *           {
+     *             "default": 20.1,
+     *             "id": "mass_after_ash",
+     *             "label": "Mass after ashing at 750°C (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
      *             "type": "number"
      *           }
      *         ],
-     *         "title": "Calorific Value Form"
+     *         "title": "Proximate Analysis Form"
      *       }
      *     }
      */
@@ -272,7 +380,10 @@ export interface components {
       title: string;
       /** Description */
       description?: string | null;
-      userForm?: components["schemas"]["WorkerForm"] | null;
+      /** Userform */
+      userForm?: {
+        [key: string]: unknown;
+      } | null;
       workerForm: components["schemas"]["WorkerForm"];
       /** Calculations */
       calculations: {
@@ -295,20 +406,22 @@ export interface components {
       lineage_id: string;
       /** Name */
       name: string;
-      /** Description */
-      description?: string | null;
       /** Version */
       version: number;
       /** Is Current */
       is_current: boolean;
-      userForm?: components["schemas"]["WorkerForm"] | null;
-      workerForm: components["schemas"]["WorkerForm"];
-      /** Calculations */
-      calculations: {
-        [key: string]: string;
-      };
-      /** Template */
-      template: string;
+    } & {
+      [key: string]: unknown;
+    };
+    /** ExperimentTemplateHistoryResponse */
+    ExperimentTemplateHistoryResponse: {
+      /**
+       * Lineage Id
+       * Format: uuid
+       */
+      lineage_id: string;
+      /** Versions */
+      versions: components["schemas"]["ExperimentTemplateSummary"][];
     };
     /** ExperimentTemplateSummary */
     ExperimentTemplateSummary: {
@@ -335,16 +448,30 @@ export interface components {
      * ExperimentTemplateUpdate
      * @example {
      *       "calculations": {
-     *         "fuse_corr": "fuse_correction || 0",
-     *         "gcv_cal_g": "Math.round((water_equivalent * temp_rise - fuse_corr) / sample_mass)",
-     *         "gcv_kj_kg": "Math.round(gcv_cal_g * 4.1868)"
+     *         "ash_mass": "mass_after_ash - crucible_mass",
+     *         "ash_pct": "Math.round(1000 * ash_mass / sample_mass) / 10",
+     *         "fixed_carbon_pct": "Math.round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10",
+     *         "moisture_loss": "crucible_mass + sample_mass - mass_after_moisture",
+     *         "moisture_pct": "Math.round(1000 * moisture_loss / sample_mass) / 10",
+     *         "volatile_loss": "mass_after_moisture - mass_after_volatile",
+     *         "volatile_pct": "Math.round(1000 * volatile_loss / sample_mass) / 10"
      *       },
-     *       "description": "Determine gross calorific value by bomb calorimetry",
-     *       "name": "Calorific Value (GCV)",
-     *       "template": "GCV = {{gcv_cal_g}} cal/g ({{gcv_kj_kg}} kJ/kg)",
+     *       "description": "Determine moisture, ash, volatile matter, and fixed carbon content",
+     *       "template": "Moisture = {{moisture_pct}}% | Volatile Matter = {{volatile_pct}}% | Ash = {{ash_pct}}% | Fixed Carbon = {{fixed_carbon_pct}}%",
+     *       "title": "Proximate Analysis",
      *       "workerForm": {
-     *         "description": "Record bomb calorimeter readings.",
+     *         "description": "Record masses at each stage of the proximate analysis procedure.",
      *         "questions": [
+     *           {
+     *             "default": 20,
+     *             "id": "crucible_mass",
+     *             "label": "Crucible mass (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number"
+     *           },
      *           {
      *             "default": 1,
      *             "id": "sample_mass",
@@ -356,37 +483,37 @@ export interface components {
      *             "type": "number"
      *           },
      *           {
-     *             "default": 2426,
-     *             "id": "water_equivalent",
-     *             "label": "Water equivalent of calorimeter (cal/°C)",
-     *             "max": 5000,
-     *             "min": 1000,
-     *             "required": true,
-     *             "step": 0.1,
-     *             "type": "number"
-     *           },
-     *           {
-     *             "default": 2.5,
-     *             "id": "temp_rise",
-     *             "label": "Temperature rise (°C)",
-     *             "max": 10,
+     *             "default": 20.8,
+     *             "id": "mass_after_moisture",
+     *             "label": "Mass after moisture drying at 105°C (g)",
+     *             "max": 200,
      *             "min": 0,
      *             "required": true,
      *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 2,
-     *             "id": "fuse_correction",
-     *             "label": "Fuse wire correction (cal)",
-     *             "max": 100,
+     *             "default": 20.5,
+     *             "id": "mass_after_volatile",
+     *             "label": "Mass after volatile matter removal at 900°C (g)",
+     *             "max": 200,
      *             "min": 0,
-     *             "required": false,
-     *             "step": 0.1,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number"
+     *           },
+     *           {
+     *             "default": 20.1,
+     *             "id": "mass_after_ash",
+     *             "label": "Mass after ashing at 750°C (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
      *             "type": "number"
      *           }
      *         ],
-     *         "title": "Calorific Value Form"
+     *         "title": "Proximate Analysis Form"
      *       }
      *     }
      */
@@ -395,7 +522,10 @@ export interface components {
       title: string;
       /** Description */
       description?: string | null;
-      userForm?: components["schemas"]["WorkerForm"] | null;
+      /** Userform */
+      userForm?: {
+        [key: string]: unknown;
+      } | null;
       workerForm: components["schemas"]["WorkerForm"];
       /** Calculations */
       calculations: {
@@ -417,66 +547,76 @@ export interface components {
     /**
      * ExperimentUpdate
      * @example {
-     *       "state": {
-     *         "calculations": {
-     *           "fuse_corr": "fuse_correction || 0",
-     *           "gcv_cal_g": "Math.round((water_equivalent * temp_rise - fuse_corr) / sample_mass)",
-     *           "gcv_kj_kg": "Math.round(gcv_cal_g * 4.1868)"
-     *         },
-     *         "description": "Determine gross calorific value by bomb calorimetry",
-     *         "id": "d59a46b2-28a5-4243-b894-c6ecf6309d02",
-     *         "name": "Calorific Value (GCV)",
-     *         "template": "GCV = {{gcv_cal_g}} cal/g ({{gcv_kj_kg}} kJ/kg)",
-     *         "workerForm": {
-     *           "description": "Record bomb calorimeter readings.",
-     *           "questions": [
-     *             {
-     *               "default": 1,
-     *               "id": "sample_mass",
-     *               "label": "Sample mass (g)",
-     *               "max": 10,
-     *               "min": 0,
-     *               "required": true,
-     *               "step": 0.001,
-     *               "type": "number",
-     *               "value": 1.023
-     *             },
-     *             {
-     *               "default": 2426,
-     *               "id": "water_equivalent",
-     *               "label": "Water equivalent of calorimeter (cal/°C)",
-     *               "max": 5000,
-     *               "min": 1000,
-     *               "required": true,
-     *               "step": 0.1,
-     *               "type": "number",
-     *               "value": 2426
-     *             },
-     *             {
-     *               "default": 2.5,
-     *               "id": "temp_rise",
-     *               "label": "Temperature rise (°C)",
-     *               "max": 10,
-     *               "min": 0,
-     *               "required": true,
-     *               "step": 0.001,
-     *               "type": "number",
-     *               "value": 3.142
-     *             },
-     *             {
-     *               "default": 2,
-     *               "id": "fuse_correction",
-     *               "label": "Fuse wire correction (cal)",
-     *               "max": 100,
-     *               "min": 0,
-     *               "required": false,
-     *               "step": 0.1,
-     *               "type": "number",
-     *               "value": 1.8
-     *             }
-     *           ],
-     *           "title": "Calorific Value Form"
-     *         }
+     *       "calculations": {
+     *         "ash_mass": "mass_after_ash - crucible_mass",
+     *         "ash_pct": "Math.round(1000 * ash_mass / sample_mass) / 10",
+     *         "fixed_carbon_pct": "Math.round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10",
+     *         "moisture_loss": "crucible_mass + sample_mass - mass_after_moisture",
+     *         "moisture_pct": "Math.round(1000 * moisture_loss / sample_mass) / 10",
+     *         "volatile_loss": "mass_after_moisture - mass_after_volatile",
+     *         "volatile_pct": "Math.round(1000 * volatile_loss / sample_mass) / 10"
+     *       },
+     *       "template": "Moisture = {{moisture_pct}}% | Volatile Matter = {{volatile_pct}}% | Ash = {{ash_pct}}% | Fixed Carbon = {{fixed_carbon_pct}}%",
+     *       "workerForm": {
+     *         "description": "Record masses at each stage of the proximate analysis procedure.",
+     *         "questions": [
+     *           {
+     *             "default": 20,
+     *             "id": "crucible_mass",
+     *             "label": "Crucible mass (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number",
+     *             "value": 21.354
+     *           },
+     *           {
+     *             "default": 1,
+     *             "id": "sample_mass",
+     *             "label": "Sample mass (g)",
+     *             "max": 10,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number",
+     *             "value": 1.001
+     *           },
+     *           {
+     *             "default": 20.8,
+     *             "id": "mass_after_moisture",
+     *             "label": "Mass after moisture drying at 105°C (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number",
+     *             "value": 22.247
+     *           },
+     *           {
+     *             "default": 20.5,
+     *             "id": "mass_after_volatile",
+     *             "label": "Mass after volatile matter removal at 900°C (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number",
+     *             "value": 21.891
+     *           },
+     *           {
+     *             "default": 20.1,
+     *             "id": "mass_after_ash",
+     *             "label": "Mass after ashing at 750°C (g)",
+     *             "max": 200,
+     *             "min": 0,
+     *             "required": true,
+     *             "step": 0.001,
+     *             "type": "number",
+     *             "value": 21.501
+     *           }
+     *         ],
+     *         "title": "Proximate Analysis Form"
      *       }
      *     }
      */
@@ -488,7 +628,10 @@ export interface components {
       };
       /** Template */
       template: string;
-      userForm?: components["schemas"]["WorkerForm"] | null;
+      /** Userform */
+      userForm?: {
+        [key: string]: unknown;
+      } | null;
     };
     /** ExperimentsListResponse */
     ExperimentsListResponse: {
@@ -525,6 +668,40 @@ export interface components {
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /** PdfTemplateBody */
+    PdfTemplateBody: {
+      /** Components */
+      components: unknown[];
+    };
+    /** PdfTemplateResponse */
+    PdfTemplateResponse: {
+      /**
+       * Template Id
+       * Format: uuid
+       */
+      template_id: string;
+      /** Is Current */
+      is_current: boolean;
+      /** Components */
+      components: unknown[];
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** ReportDownloadResponse */
+    ReportDownloadResponse: {
+      /** Url */
+      url: string;
+      /** Expires In */
+      expires_in: number;
+    };
+    /** ReportStatusResponse */
+    ReportStatusResponse: {
+      /** Status */
+      status: string;
     };
     /**
      * SampleCreate
@@ -846,13 +1023,43 @@ export interface operations {
       };
     };
   };
-  update_experiment_template_api_samples__sample_id__experiments__template_id__put: {
+  delete_experiment_template_api_samples__sample_id__experiments__template_id__delete: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         sample_id: string;
         template_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_experiment_template_api_samples__sample_id__experiments__lineage_id__put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sample_id: string;
+        lineage_id: string;
       };
       cookie?: never;
     };
@@ -882,7 +1089,71 @@ export interface operations {
       };
     };
   };
-  delete_experiment_template_api_samples__sample_id__experiments__template_id__delete: {
+  get_experiment_template_history_api_samples__sample_id__experiments__lineage_id__history_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sample_id: string;
+        lineage_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ExperimentTemplateHistoryResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_pdf_template_api_samples__sample_id__experiments__template_id__pdf_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sample_id: string;
+        template_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PdfTemplateResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_pdf_template_api_samples__sample_id__experiments__template_id__pdf_delete: {
     parameters: {
       query?: never;
       header?: never;
@@ -900,6 +1171,42 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  upsert_pdf_template_api_samples__sample_id__experiments__lineage_id__pdf_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        sample_id: string;
+        lineage_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PdfTemplateBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PdfTemplateResponse"];
+        };
       };
       /** @description Validation Error */
       422: {
@@ -1048,6 +1355,68 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  generate_report_api_experiments__exp_id__report_generate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        exp_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportStatusResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  download_report_api_experiments__exp_id__report_download_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        exp_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportDownloadResponse"];
+        };
       };
       /** @description Validation Error */
       422: {

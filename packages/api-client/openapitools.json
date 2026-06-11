@@ -15,6 +15,18 @@
         },
         "enablePostProcessFile": true,
         "removeOperationIdPrefix": true
+      },
+      "ticketing": {
+        "generatorName": "typescript-fetch",
+        "output": "src/ticketing",
+        "inputSpec": "http://ticketing-service.mapfox.hoshina.san/docs/doc.json",
+        "additionalProperties": {
+          "disallowAdditionalPropertiesIfNotPresent": false,
+          "supportsES6": true,
+          "useSingleRequestParameter": false
+        },
+        "enablePostProcessFile": true,
+        "removeOperationIdPrefix": true
       }
     }
   }

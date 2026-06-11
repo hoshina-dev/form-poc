@@ -13,3 +13,18 @@ export {
   OrganizationsApi,
   UsersApi,
 } from "./custapi";
+export type {
+  GithubComHoshinaDevTicketingServiceInternalDtoAddExperimentTemplateRequest as TicketingAddExperimentTemplateRequest,
+  GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest as TicketingCreateTicketRequest,
+  GithubComHoshinaDevTicketingServiceInternalDtoErrorResponse as TicketingErrorResponse,
+  GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse as TicketingExperimentTemplateResponse,
+  GithubComHoshinaDevTicketingServiceInternalDtoTicketResponse as TicketingTicketResponse,
+  GithubComHoshinaDevTicketingServiceInternalDtoTransitionStatusRequest as TicketingTransitionStatusRequest,
+} from "./ticketing";
+export {
+  Configuration as TicketingConfiguration,
+  ExperimentTemplatesApi as TicketingExperimentTemplatesApi,
+  HealthApi as TicketingHealthApi,
+  ResponseError as TicketingResponseError,
+  TicketsApi,
+} from "./ticketing";

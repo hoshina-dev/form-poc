@@ -1,2 +1,3 @@
 /packages/api-client/src/custapi/** linguist-generated=true
 /packages/api-client/src/experiment-manager.d.ts linguist-generated=true
+/packages/api-client/src/ticketing/** linguist-generated=true

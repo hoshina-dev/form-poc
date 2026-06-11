@@ -13,7 +13,7 @@ check_server() {
   fi
 }
 
-rm -rf src/*.d.ts src/custapi
+rm -rf src/*.d.ts src/custapi src/ticketing
 
 # Experiment Manager
 echo "Checking Experiment Manager server..."
@@ -30,6 +30,19 @@ if check_server "http://custapi.mapfox.hoshina.san/swagger/doc.json" "CustAPI"; 
     -g typescript-fetch \
     -i http://custapi.mapfox.hoshina.san/swagger/doc.json \
     -o src/custapi \
+    --additional-properties=disallowAdditionalPropertiesIfNotPresent=false,supportsES6=true,useSingleRequestParameter=false \
+    --enable-post-process-file \
+    --remove-operation-id-prefix
+fi
+
+# Ticketing Service
+echo "Checking Ticketing Service server..."
+if check_server "http://ticketing-service.mapfox.hoshina.san/docs/doc.json" "Ticketing Service"; then
+  echo "Generating client for Ticketing Service..."
+  pnpm openapi-generator-cli generate \
+    -g typescript-fetch \
+    -i http://ticketing-service.mapfox.hoshina.san/docs/doc.json \
+    -o src/ticketing \
     --additional-properties=disallowAdditionalPropertiesIfNotPresent=false,supportsES6=true,useSingleRequestParameter=false \
     --enable-post-process-file \
     --remove-operation-id-prefix
