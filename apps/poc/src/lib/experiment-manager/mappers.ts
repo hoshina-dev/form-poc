@@ -20,6 +20,7 @@ export interface TemplateRef {
 export interface TemplateSummary {
   sampleId: string;
   templateId: string;
+  lineageId: string;
   title: string;
   description?: string;
 }
@@ -69,7 +70,7 @@ export function formSchemaToTemplateCreate(
   form: FormSchema,
 ): ExperimentTemplateCreate {
   return {
-    name: form.title,
+    title: form.title,
     description: form.description ?? null,
     userForm:
       form.userForm.questions.length > 0
@@ -94,6 +95,7 @@ export function toTemplateSummary(
   return {
     sampleId,
     templateId: row.id,
+    lineageId: row.lineage_id,
     title: row.name,
     description: row.description ?? undefined,
   };

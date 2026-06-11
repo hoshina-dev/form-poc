@@ -65,6 +65,8 @@ export type ExperimentDetail =
   ExperimentManager.Components["schemas"]["ExperimentDetail"];
 export type ExperimentSummary =
   ExperimentManager.Components["schemas"]["ExperimentSummary"];
+export type WorkerForm =
+  ExperimentManager.Components["schemas"]["WorkerForm"];
 
 export async function listSamples() {
   return emFetch<{ samples: SampleSummary[] }>("/api/samples");
@@ -149,4 +151,61 @@ export async function getExperiment(expId: string) {
 
 export async function deleteExperiment(expId: string) {
   return emFetch<void>(`/api/experiments/${expId}`, { method: "DELETE" });
+}
+
+export interface PdfTemplateDetail {
+  template_id: string;
+  is_current: boolean;
+  components: unknown[];
+  updated_at: string;
+}
+
+export async function getPdfTemplate(sampleId: string, templateId: string) {
+  return emFetch<PdfTemplateDetail>(
+    `/api/samples/${sampleId}/experiments/${templateId}/pdf`,
+  );
+}
+
+export async function upsertPdfTemplate(
+  sampleId: string,
+  lineageId: string,
+  components: unknown[],
+) {
+  return emFetch<PdfTemplateDetail>(
+    `/api/samples/${sampleId}/experiments/${lineageId}/pdf`,
+    { method: "PUT", body: JSON.stringify({ components }) },
+  );
+}
+
+export async function deletePdfTemplate(sampleId: string, templateId: string) {
+  return emFetch<void>(
+    `/api/samples/${sampleId}/experiments/${templateId}/pdf`,
+    { method: "DELETE" },
+  );
+}
+
+export interface TemplateVersionEntry {
+  id: string;
+  lineage_id: string;
+  name: string;
+  version: number;
+  is_current: boolean;
+}
+
+export async function getTemplateHistory(sampleId: string, lineageId: string) {
+  return emFetch<{ lineage_id: string; versions: TemplateVersionEntry[] }>(
+    `/api/samples/${sampleId}/experiments/${lineageId}/history`,
+  );
+}
+
+export async function generateReport(expId: string) {
+  return emFetch<{ status: string }>(`/api/experiments/${expId}/report/generate`, {
+    method: "POST",
+  });
+}
+
+export async function downloadReport(expId: string) {
+  return emFetch<{ url: string; expires_in: number }>(
+    `/api/experiments/${expId}/report/download`,
+  );
 }

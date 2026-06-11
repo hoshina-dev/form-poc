@@ -27,7 +27,7 @@ import {
 import { FormFlow } from "@/components/FormFlow";
 import type { SessionUser } from "@/lib/auth/definitions";
 import { type FormDraft, fromDraft, toDraft } from "@/lib/builder";
-import { samplePath, templateBuilderPath } from "@/lib/routes";
+import { samplePath, templateBuilderPath, templatePdfPath } from "@/lib/routes";
 
 import { CalculationsEditor } from "./CalculationsEditor";
 import { SectionEditor } from "./SectionEditor";
@@ -192,6 +192,15 @@ export function BuilderApp({
           <Button variant="default" onClick={() => setPreviewOpen(true)}>
             Live preview
           </Button>
+          {mode === "edit" && templateId && (
+            <Button
+              variant="default"
+              component={Link}
+              href={templatePdfPath({ sampleId, templateId })}
+            >
+              PDF template
+            </Button>
+          )}
           <Button onClick={save} loading={isPending}>
             {mode === "create" ? "Create template" : "Save changes"}
           </Button>

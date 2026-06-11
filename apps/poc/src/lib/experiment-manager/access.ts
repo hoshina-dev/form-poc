@@ -15,7 +15,7 @@ export function canViewExperiment(
 ): boolean {
   if (!runState) return false;
   if (session.appRole === "client") {
-    return isRunOwner(session, runState);
+    return runState.state.phase === "user";
   }
   return runState.state.phase === "worker" || runState.state.phase === "result";
 }
@@ -26,7 +26,7 @@ export function canResumeExperiment(
 ): boolean {
   if (!runState) return false;
   if (session.appRole === "client") {
-    return isRunOwner(session, runState) && runState.state.phase === "user";
+    return runState.state.phase === "user";
   }
   return runState.state.phase === "worker";
 }

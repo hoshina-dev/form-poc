@@ -1,9 +1,11 @@
 import "server-only";
 
+import type { FormAnswers } from "@hoshina-dev/forms";
 import type { SessionPayload } from "@/lib/auth/definitions";
 
 import { canViewExperiment } from "./access";
 import {
+  type ExperimentDetail,
   type ExperimentSummary,
   getExperiment,
   getExperimentTemplate,
@@ -15,9 +17,9 @@ import {
 import { templateToFormSchema, toTemplateSummary } from "./mappers";
 import {
   type ExperimentPhase,
+  type ExperimentRunState,
   type ExperimentStateKind,
-  getExperimentStateKind,
-  parseExperimentRunState,
+  EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
 } from "./state";
 
 export interface ExperimentListItem {
@@ -31,6 +33,89 @@ export interface ExperimentListItem {
   stateKind: ExperimentStateKind;
   createdByName: string | null;
   technicianLogCount: number;
+}
+
+function extractAnswersFromQuestions(
+  questions: Array<{ id: string; [key: string]: unknown }> | undefined,
+): Record<string, unknown> | undefined {
+  if (!questions?.length) return undefined;
+  const answers: Record<string, unknown> = {};
+  for (const q of questions) {
+    if (q["value"] !== undefined && q["value"] !== null) {
+      answers[q.id] = q["value"];
+    }
+  }
+  return Object.keys(answers).length > 0 ? answers : undefined;
+}
+
+function derivePhase(detail: ExperimentDetail): ExperimentPhase {
+  if (detail.userForm?.questions?.length) {
+    const anyUnanswered = detail.userForm.questions.some(
+      (q) =>
+        (q as Record<string, unknown>)["required"] &&
+        ((q as Record<string, unknown>)["value"] === undefined ||
+          (q as Record<string, unknown>)["value"] === null),
+    );
+    if (anyUnanswered) return "user";
+  }
+  if (detail.workerForm?.questions?.length) {
+    const requiredQuestions = detail.workerForm.questions.filter(
+      (q) => (q as Record<string, unknown>)["required"],
+    );
+    if (requiredQuestions.length > 0) {
+      const allAnswered = requiredQuestions.every(
+        (q) =>
+          (q as Record<string, unknown>)["value"] !== undefined &&
+          (q as Record<string, unknown>)["value"] !== null,
+      );
+      if (allAnswered) return "result";
+    }
+  }
+  return "worker";
+}
+
+export function deriveRunStateFromDetail(
+  detail: ExperimentDetail,
+): ExperimentRunState | null {
+  try {
+    const templateLike = {
+      id: detail.template_id,
+      lineage_id: "",
+      name: detail.title,
+      version: 0,
+      is_current: true,
+      description: null,
+      userForm: detail.userForm ?? null,
+      workerForm: detail.workerForm,
+      calculations: detail.calculations,
+      template: detail.template,
+    };
+    const formSchema = templateToFormSchema(templateLike);
+
+    const userAnswers = extractAnswersFromQuestions(
+      detail.userForm?.questions as Array<{ id: string; [key: string]: unknown }> | undefined,
+    );
+    const workerAnswers = extractAnswersFromQuestions(
+      detail.workerForm.questions as Array<{ id: string; [key: string]: unknown }>,
+    );
+
+    const phase = derivePhase(detail);
+
+    return {
+      schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
+      template: formSchema,
+      technicianLogs: [],
+      state: {
+        phase,
+        answers: {
+          ...(userAnswers ? { user: userAnswers as FormAnswers } : {}),
+          ...(workerAnswers ? { worker: workerAnswers as FormAnswers } : {}),
+        },
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchSamples() {
@@ -85,7 +170,7 @@ export async function fetchExperiments(
   const details = await Promise.all(
     experiments.map(async (row) => {
       try {
-        return await getExperiment(row.exp_id);
+        return await getExperiment(row.id);
       } catch {
         return null;
       }
@@ -94,20 +179,21 @@ export async function fetchExperiments(
 
   return experiments
     .map((row, index): ExperimentListItem | null => {
-      const runState = parseExperimentRunState(details[index]?.state);
+      const detail = details[index];
+      const runState = detail ? deriveRunStateFromDetail(detail) : null;
       if (!canViewExperiment(session, runState)) return null;
       return {
-        expId: row.exp_id,
+        expId: row.id,
         sampleId: row.sample_id,
         sampleName: sampleById.get(row.sample_id) ?? row.sample_id,
         templateId: row.template_id,
         templateName:
-          runState?.template.title ??
+          detail?.title ??
           templateNames.get(`${row.sample_id}/${row.template_id}`) ??
           row.template_id,
         createdAt: row.created_at,
         phase: runState?.state.phase ?? null,
-        stateKind: getExperimentStateKind(details[index]?.state),
+        stateKind: detail ? "current" : "missing",
         createdByName: runState?.createdBy?.name ?? null,
         technicianLogCount: runState?.technicianLogs.length ?? 0,
       };
@@ -118,7 +204,7 @@ export async function fetchExperiments(
 
 export async function fetchExperimentRun(expId: string) {
   const experiment = await getExperiment(expId);
-  const runState = parseExperimentRunState(experiment.state);
+  const runState = deriveRunStateFromDetail(experiment);
   const [sample, template] = await Promise.all([
     getSample(experiment.sample_id),
     getExperimentTemplate(experiment.sample_id, experiment.template_id),
@@ -130,6 +216,6 @@ export async function fetchExperimentRun(expId: string) {
     template,
     form: runState?.template ?? templateToFormSchema(template),
     runState,
-    stateKind: getExperimentStateKind(experiment.state),
+    stateKind: (runState ? "current" : "missing") as ExperimentStateKind,
   };
 }
