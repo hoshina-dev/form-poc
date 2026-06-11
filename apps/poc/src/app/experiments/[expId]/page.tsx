@@ -5,6 +5,11 @@ import {
   Paper,
   Stack,
   Table,
+  TableTbody,
+  TableTd,
+  TableTh,
+  TableThead,
+  TableTr,
   Text,
   Title,
 } from "@mantine/core";
@@ -226,20 +231,20 @@ export default async function ExperimentDetailPage({
                 horizontalSpacing="md"
                 verticalSpacing="sm"
               >
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th style={{ width: "32%" }}>Field</Table.Th>
-                    <Table.Th>Value</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
+                <TableThead>
+                  <TableTr>
+                    <TableTh style={{ width: "32%" }}>Field</TableTh>
+                    <TableTh>Value</TableTh>
+                  </TableTr>
+                </TableThead>
+                <TableTbody>
                   {statusRows.map((row) => (
-                    <Table.Tr key={row.label}>
-                      <Table.Th scope="row">{row.label}</Table.Th>
-                      <Table.Td>{row.value}</Table.Td>
-                    </Table.Tr>
+                    <TableTr key={row.label}>
+                      <TableTh scope="row">{row.label}</TableTh>
+                      <TableTd>{row.value}</TableTd>
+                    </TableTr>
                   ))}
-                </Table.Tbody>
+                </TableTbody>
               </Table>
 
               <details>

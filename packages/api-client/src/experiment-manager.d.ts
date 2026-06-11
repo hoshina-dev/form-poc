@@ -139,18 +139,18 @@ export interface components {
        */
       sample_id: string;
       /**
-       * Template Id
+       * Lineage Id
        * Format: uuid
        */
-      template_id: string;
+      lineage_id: string;
     };
     /** ExperimentDetail */
     ExperimentDetail: {
       /**
-       * Exp Id
+       * Id
        * Format: uuid
        */
-      exp_id: string;
+      id: string;
       /**
        * Sample Id
        * Format: uuid
@@ -161,10 +161,22 @@ export interface components {
        * Format: uuid
        */
       template_id: string;
-      /** State */
-      state: {
-        [key: string]: unknown;
+      /** Title */
+      title: string;
+      userForm?: components["schemas"]["WorkerForm"] | null;
+      workerForm: components["schemas"]["WorkerForm"];
+      /** Calculations */
+      calculations: {
+        [key: string]: string;
       };
+      /** Template */
+      template: string;
+      /** Report Status */
+      report_status: string | null;
+      /** Report R2 Key */
+      report_r2_key: string | null;
+      /** Report Generated At */
+      report_generated_at: string | null;
       /**
        * Created At
        * Format: date-time
@@ -174,10 +186,10 @@ export interface components {
     /** ExperimentSummary */
     ExperimentSummary: {
       /**
-       * Exp Id
+       * Id
        * Format: uuid
        */
-      exp_id: string;
+      id: string;
       /**
        * Sample Id
        * Format: uuid
@@ -188,6 +200,8 @@ export interface components {
        * Format: uuid
        */
       template_id: string;
+      /** Report Status */
+      report_status: string | null;
       /**
        * Created At
        * Format: date-time
@@ -254,8 +268,8 @@ export interface components {
      *     }
      */
     ExperimentTemplateCreate: {
-      /** Name */
-      name: string;
+      /** Title */
+      title: string;
       /** Description */
       description?: string | null;
       userForm?: components["schemas"]["WorkerForm"] | null;
@@ -274,10 +288,19 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /**
+       * Lineage Id
+       * Format: uuid
+       */
+      lineage_id: string;
       /** Name */
       name: string;
       /** Description */
       description?: string | null;
+      /** Version */
+      version: number;
+      /** Is Current */
+      is_current: boolean;
       userForm?: components["schemas"]["WorkerForm"] | null;
       workerForm: components["schemas"]["WorkerForm"];
       /** Calculations */
@@ -294,10 +317,19 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /**
+       * Lineage Id
+       * Format: uuid
+       */
+      lineage_id: string;
       /** Name */
       name: string;
       /** Description */
       description?: string | null;
+      /** Version */
+      version: number;
+      /** Is Current */
+      is_current: boolean;
     };
     /**
      * ExperimentTemplateUpdate
@@ -359,8 +391,8 @@ export interface components {
      *     }
      */
     ExperimentTemplateUpdate: {
-      /** Name */
-      name: string;
+      /** Title */
+      title: string;
       /** Description */
       description?: string | null;
       userForm?: components["schemas"]["WorkerForm"] | null;
@@ -449,10 +481,14 @@ export interface components {
      *     }
      */
     ExperimentUpdate: {
-      /** State */
-      state: {
-        [key: string]: unknown;
+      workerForm: components["schemas"]["WorkerForm"];
+      /** Calculations */
+      calculations: {
+        [key: string]: string;
       };
+      /** Template */
+      template: string;
+      userForm?: components["schemas"]["WorkerForm"] | null;
     };
     /** ExperimentsListResponse */
     ExperimentsListResponse: {

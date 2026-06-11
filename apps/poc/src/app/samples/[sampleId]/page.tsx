@@ -12,6 +12,7 @@ import {
 import {
   newTemplatePath,
   templateBuilderPath,
+  templatePdfPath,
   templatePreviewPath,
 } from "@/lib/routes";
 
@@ -132,13 +133,22 @@ export default async function SampleTemplatesPage({
                         </LinkButton>
                       )}
                       {canManageTemplates && (
-                        <LinkButton
-                          href={templateBuilderPath(ref)}
-                          variant="default"
-                          size="xs"
-                        >
-                          Edit
-                        </LinkButton>
+                        <>
+                          <LinkButton
+                            href={templateBuilderPath(ref)}
+                            variant="default"
+                            size="xs"
+                          >
+                            Edit
+                          </LinkButton>
+                          <LinkButton
+                            href={templatePdfPath(ref)}
+                            variant="default"
+                            size="xs"
+                          >
+                            PDF
+                          </LinkButton>
+                        </>
                       )}
                     </Group>
                   </Group>

@@ -24,6 +24,10 @@ export function templateBuilderPath(ref: TemplateRef) {
   return `/samples/${ref.sampleId}/templates/${ref.templateId}/builder`;
 }
 
+export function templatePdfPath(ref: TemplateRef) {
+  return `/samples/${ref.sampleId}/templates/${ref.templateId}/pdf`;
+}
+
 export function newTemplatePath(sampleId: string) {
   return `/samples/${sampleId}/builder/new`;
 }

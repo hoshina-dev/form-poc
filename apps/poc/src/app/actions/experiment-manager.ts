@@ -15,12 +15,15 @@ import {
   deleteExperiment,
   deleteExperimentTemplate,
   ExperimentManagerError,
+  generateReport,
   getExperiment,
   getExperimentTemplate,
   listExperimentTemplates,
   listSamples,
   updateExperiment,
   updateExperimentTemplate,
+  upsertPdfTemplate,
+  type WorkerForm,
 } from "@/lib/experiment-manager/client";
 import { getDefaultSampleId } from "@/lib/experiment-manager/config";
 import {
@@ -32,6 +35,7 @@ import {
   toTemplateSummary,
 } from "@/lib/experiment-manager/mappers";
 import {
+  deriveRunStateFromDetail,
   type ExperimentListItem,
   fetchExperiments,
 } from "@/lib/experiment-manager/queries";
@@ -63,8 +67,35 @@ function actorFromSession(session: SessionPayload): ExperimentActor {
   };
 }
 
-function stateRecord(state: ExperimentRunState): Record<string, unknown> {
-  return state as unknown as Record<string, unknown>;
+function injectAnswers(
+  form: { title?: string | null; description?: string | null; questions: unknown[] },
+  answers: Record<string, unknown> | undefined,
+): WorkerForm {
+  return {
+    title: form.title,
+    description: form.description,
+    questions: (form.questions as Array<{ id: string; [key: string]: unknown }>).map(
+      (q) =>
+        ({
+          ...q,
+          ...(answers && q.id in answers ? { value: answers[q.id] } : {}),
+        }) as WorkerForm["questions"][number],
+    ),
+  };
+}
+
+function buildExperimentUpdateBody(state: ExperimentRunState) {
+  const workerAnswers = state.state.answers.worker as Record<string, unknown> | undefined;
+  const userAnswers = state.state.answers.user as Record<string, unknown> | undefined;
+  return {
+    workerForm: injectAnswers(state.template.workerForm, workerAnswers),
+    calculations: state.template.calculations,
+    template: state.template.template,
+    userForm:
+      state.template.userForm.questions.length > 0
+        ? injectAnswers(state.template.userForm, userAnswers)
+        : null,
+  };
 }
 
 function normalizeClientState(
@@ -261,10 +292,11 @@ export async function startExperimentAction(
 ): Promise<ActionResult<{ expId: string }>> {
   try {
     await requireSession("client");
+    const template = await getExperimentTemplate(ref.sampleId, ref.templateId);
     await createExperiment({
       exp_id: expId,
       sample_id: ref.sampleId,
-      template_id: ref.templateId,
+      lineage_id: template.lineage_id,
     });
     revalidatePath("/experiments");
     return { success: true, data: { expId } };
@@ -273,7 +305,7 @@ export async function startExperimentAction(
   }
 }
 
-/** Preview — persist answers / result into experiment.state */
+/** Preview — persist answers / result into experiment state */
 export async function saveExperimentStateAction(
   expId: string,
   state: Record<string, unknown>,
@@ -286,7 +318,7 @@ export async function saveExperimentStateAction(
     }
 
     const experiment = await getExperiment(expId);
-    const existingState = parseExperimentRunState(experiment.state);
+    const existingState = deriveRunStateFromDetail(experiment);
     const normalized =
       session.appRole === "client"
         ? normalizeClientState(session, existingState, nextState)
@@ -294,7 +326,7 @@ export async function saveExperimentStateAction(
 
     if (!normalized.success) return normalized;
 
-    await updateExperiment(expId, { state: stateRecord(normalized.data) });
+    await updateExperiment(expId, buildExperimentUpdateBody(normalized.data));
     revalidatePath("/experiments");
     revalidatePath(`/experiments/${expId}`);
     revalidatePath(`/experiments/${expId}/resume`);
@@ -310,7 +342,7 @@ export async function getExperimentAction(
   try {
     const session = await requireSession();
     const data = await getExperiment(expId);
-    if (!canViewExperiment(session, parseExperimentRunState(data.state))) {
+    if (!canViewExperiment(session, deriveRunStateFromDetail(data))) {
       return { success: false, error: "Experiment not found" };
     }
     return { success: true, data };
@@ -325,7 +357,7 @@ export async function deleteExperimentAction(
   try {
     const session = await requireSession();
     const experiment = await getExperiment(expId);
-    const runState = parseExperimentRunState(experiment.state);
+    const runState = deriveRunStateFromDetail(experiment);
     if (
       session.appRole !== "client" ||
       !canViewExperiment(session, runState) ||
@@ -361,5 +393,33 @@ export async function listSamplesAction(): Promise<
     return { success: true, data: samples };
   } catch (error) {
     return actionError(error, "Failed to list samples");
+  }
+}
+
+export async function savePdfAction(
+  sampleId: string,
+  lineageId: string,
+  components: unknown[],
+): Promise<ActionResult<void>> {
+  try {
+    await requireSession("technician");
+    await upsertPdfTemplate(sampleId, lineageId, components);
+    revalidatePath(`/samples/${sampleId}`);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return actionError(error, "Failed to save PDF template");
+  }
+}
+
+export async function generateReportAction(
+  expId: string,
+): Promise<ActionResult<void>> {
+  try {
+    await requireSession();
+    await generateReport(expId);
+    revalidatePath(`/experiments/${expId}`);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return actionError(error, "Failed to queue report generation");
   }
 }
