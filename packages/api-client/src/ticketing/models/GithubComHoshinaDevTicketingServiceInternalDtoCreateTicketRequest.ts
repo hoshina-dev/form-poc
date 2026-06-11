@@ -21,10 +21,10 @@ import { mapValues } from '../runtime';
 export interface GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest {
     /**
      * 
-     * @type {Array<string>}
+     * @type {string}
      * @memberof GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest
      */
-    experimentTemplateIds: Array<string>;
+    experimentTemplateId: string;
     /**
      * 
      * @type {string}
@@ -43,7 +43,7 @@ export interface GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketReque
  * Check if a given object implements the GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest interface.
  */
 export function instanceOfGithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest(value: object): value is GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest {
-    if (!('experimentTemplateIds' in value) || value['experimentTemplateIds'] === undefined) return false;
+    if (!('experimentTemplateId' in value) || value['experimentTemplateId'] === undefined) return false;
     if (!('organizationId' in value) || value['organizationId'] === undefined) return false;
     if (!('userId' in value) || value['userId'] === undefined) return false;
     return true;
@@ -59,7 +59,7 @@ export function GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketReques
     }
     return {
         
-        'experimentTemplateIds': json['experiment_template_ids'],
+        'experimentTemplateId': json['experiment_template_id'],
         'organizationId': json['organization_id'],
         'userId': json['user_id'],
     };
@@ -76,7 +76,7 @@ export function GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketReques
 
     return {
         
-        'experiment_template_ids': value['experimentTemplateIds'],
+        'experiment_template_id': value['experimentTemplateId'],
         'organization_id': value['organizationId'],
         'user_id': value['userId'],
     };

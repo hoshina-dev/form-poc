@@ -6,7 +6,7 @@
 
 Name | Type
 ------------ | -------------
-`experimentTemplateIds` | Array&lt;string&gt;
+`experimentTemplateId` | string
 `organizationId` | string
 `userId` | string
 
@@ -17,7 +17,7 @@ import type { GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest 
 
 // TODO: Update the object below with actual values
 const example = {
-  "experimentTemplateIds": null,
+  "experimentTemplateId": null,
   "organizationId": null,
   "userId": null,
 } satisfies GithubComHoshinaDevTicketingServiceInternalDtoCreateTicketRequest

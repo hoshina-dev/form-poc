@@ -53,10 +53,10 @@ export interface GithubComHoshinaDevTicketingServiceInternalDtoTicketResponse {
     experimentStartedAt?: string;
     /**
      * 
-     * @type {Array<GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse>}
+     * @type {GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse}
      * @memberof GithubComHoshinaDevTicketingServiceInternalDtoTicketResponse
      */
-    experimentTemplates?: Array<GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse>;
+    experimentTemplate?: GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse;
     /**
      * 
      * @type {string}
@@ -122,7 +122,7 @@ export function GithubComHoshinaDevTicketingServiceInternalDtoTicketResponseFrom
         'closedReason': json['closed_reason'] == null ? undefined : json['closed_reason'],
         'createdAt': json['created_at'] == null ? undefined : json['created_at'],
         'experimentStartedAt': json['experiment_started_at'] == null ? undefined : json['experiment_started_at'],
-        'experimentTemplates': json['experiment_templates'] == null ? undefined : ((json['experiment_templates'] as Array<any>).map(GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponseFromJSON)),
+        'experimentTemplate': json['experiment_template'] == null ? undefined : GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponseFromJSON(json['experiment_template']),
         'id': json['id'] == null ? undefined : json['id'],
         'organizationId': json['organization_id'] == null ? undefined : json['organization_id'],
         'resultsSubmittedAt': json['results_submitted_at'] == null ? undefined : json['results_submitted_at'],
@@ -148,7 +148,7 @@ export function GithubComHoshinaDevTicketingServiceInternalDtoTicketResponseToJS
         'closed_reason': value['closedReason'],
         'created_at': value['createdAt'],
         'experiment_started_at': value['experimentStartedAt'],
-        'experiment_templates': value['experimentTemplates'] == null ? undefined : ((value['experimentTemplates'] as Array<any>).map(GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponseToJSON)),
+        'experiment_template': GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponseToJSON(value['experimentTemplate']),
         'id': value['id'],
         'organization_id': value['organizationId'],
         'results_submitted_at': value['resultsSubmittedAt'],

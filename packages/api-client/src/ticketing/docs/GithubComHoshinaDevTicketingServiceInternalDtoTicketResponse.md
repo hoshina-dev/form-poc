@@ -10,7 +10,7 @@ Name | Type
 `closedReason` | string
 `createdAt` | string
 `experimentStartedAt` | string
-`experimentTemplates` | [Array&lt;GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse&gt;](GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse.md)
+`experimentTemplate` | [GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse](GithubComHoshinaDevTicketingServiceInternalDtoTicketExperimentTemplateResponse.md)
 `id` | string
 `organizationId` | string
 `resultsSubmittedAt` | string
@@ -30,7 +30,7 @@ const example = {
   "closedReason": null,
   "createdAt": null,
   "experimentStartedAt": null,
-  "experimentTemplates": null,
+  "experimentTemplate": null,
   "id": null,
   "organizationId": null,
   "resultsSubmittedAt": null,
