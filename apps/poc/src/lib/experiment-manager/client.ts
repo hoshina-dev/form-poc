@@ -128,11 +128,11 @@ export async function createExperimentTemplate(
 
 export async function updateExperimentTemplate(
   sampleId: string,
-  templateId: string,
+  lineageId: string,
   body: ExperimentTemplateUpdate,
 ) {
   return emFetch<ExperimentTemplateDetail>(
-    `/api/samples/${sampleId}/experiments/${templateId}`,
+    `/api/samples/${sampleId}/experiments/${lineageId}`,
     { method: "PUT", body: JSON.stringify(body) },
   );
 }

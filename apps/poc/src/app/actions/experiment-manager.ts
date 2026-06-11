@@ -74,6 +74,19 @@ function actorFromSession(session: SessionPayload): ExperimentActor {
   };
 }
 
+async function loadRunStateFromExperiment(
+  expId: string,
+  experiment: Awaited<ReturnType<typeof getExperiment>>,
+): Promise<ExperimentRunState | null> {
+  let ticket = null;
+  try {
+    ticket = await findTicketByExpId(expId);
+  } catch {
+    // ticketing lifecycle is advisory in the POC — ignore lookup failures
+  }
+  return deriveRunStateFromDetail(experiment, ticket);
+}
+
 function injectAnswers(
   form: {
     title?: string | null;
@@ -262,12 +275,13 @@ export async function createTemplateAction(
 export async function updateTemplateAction(
   ref: TemplateRef,
   form: FormSchema,
+  lineageId: string,
 ): Promise<ActionResult<FormSchema>> {
   try {
     await requireSession("technician");
     const updated = await updateExperimentTemplate(
       ref.sampleId,
-      ref.templateId,
+      lineageId,
       formSchemaToTemplateUpdate(form),
     );
     revalidatePath("/");
@@ -278,6 +292,14 @@ export async function updateTemplateAction(
     revalidatePath(
       `/samples/${ref.sampleId}/templates/${ref.templateId}/preview`,
     );
+    if (updated.id !== ref.templateId) {
+      revalidatePath(
+        `/samples/${ref.sampleId}/templates/${updated.id}/builder`,
+      );
+      revalidatePath(
+        `/samples/${ref.sampleId}/templates/${updated.id}/preview`,
+      );
+    }
     return {
       success: true,
       data: templateToFormSchema(updated),
@@ -389,7 +411,7 @@ export async function saveExperimentStateAction(
     }
 
     const experiment = await getExperiment(expId);
-    const existingState = deriveRunStateFromDetail(experiment);
+    const existingState = await loadRunStateFromExperiment(expId, experiment);
     const normalized =
       session.appRole === "client"
         ? normalizeClientState(session, existingState, nextState)
@@ -405,7 +427,6 @@ export async function saveExperimentStateAction(
     );
     revalidatePath("/experiments");
     revalidatePath(`/experiments/${expId}`);
-    revalidatePath(`/experiments/${expId}/resume`);
     return { success: true, data: undefined };
   } catch (error) {
     return actionError(error, "Failed to save experiment state");
@@ -418,7 +439,7 @@ export async function getExperimentAction(
   try {
     const session = await requireSession();
     const data = await getExperiment(expId);
-    if (!canViewExperiment(session, deriveRunStateFromDetail(data))) {
+    if (!canViewExperiment(session, await loadRunStateFromExperiment(expId, data))) {
       return { success: false, error: "Experiment not found" };
     }
     return { success: true, data };
@@ -433,7 +454,7 @@ export async function deleteExperimentAction(
   try {
     const session = await requireSession();
     const experiment = await getExperiment(expId);
-    const runState = deriveRunStateFromDetail(experiment);
+    const runState = await loadRunStateFromExperiment(expId, experiment);
     if (
       session.appRole !== "client" ||
       !canViewExperiment(session, runState) ||
@@ -476,12 +497,23 @@ export async function savePdfAction(
   sampleId: string,
   lineageId: string,
   components: unknown[],
-): Promise<ActionResult<void>> {
+  currentTemplateId?: string,
+): Promise<ActionResult<{ templateId: string }>> {
   try {
     await requireSession("technician");
-    await upsertPdfTemplate(sampleId, lineageId, components);
+    const pdf = await upsertPdfTemplate(sampleId, lineageId, components);
     revalidatePath(`/samples/${sampleId}`);
-    return { success: true, data: undefined };
+    if (currentTemplateId) {
+      revalidatePath(
+        `/samples/${sampleId}/templates/${currentTemplateId}/pdf`,
+      );
+    }
+    if (pdf.template_id !== currentTemplateId) {
+      revalidatePath(
+        `/samples/${sampleId}/templates/${pdf.template_id}/pdf`,
+      );
+    }
+    return { success: true, data: { templateId: pdf.template_id } };
   } catch (error) {
     return actionError(error, "Failed to save PDF template");
   }

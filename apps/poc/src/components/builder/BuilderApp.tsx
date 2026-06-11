@@ -37,6 +37,8 @@ interface BuilderAppProps {
   mode: "create" | "edit";
   sampleId: string;
   templateId?: string;
+  /** Stable lineage id — required for PUT updates in edit mode. */
+  lineageId?: string;
 }
 
 const previewUser: SessionUser = {
@@ -51,6 +53,7 @@ export function BuilderApp({
   mode,
   sampleId,
   templateId,
+  lineageId,
 }: BuilderAppProps) {
   const router = useRouter();
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -94,14 +97,23 @@ export function BuilderApp({
         router.refresh();
         return;
       }
-      if (!templateId) return;
+      if (!templateId || !lineageId) return;
       const result = await updateTemplateAction(
         { sampleId, templateId },
         parsed,
+        lineageId,
       );
       if (!result.success) {
         setSaveError(result.error);
         return;
+      }
+      if (result.data.id !== templateId) {
+        router.push(
+          templateBuilderPath({
+            sampleId,
+            templateId: result.data.id,
+          }),
+        );
       }
       router.refresh();
     });

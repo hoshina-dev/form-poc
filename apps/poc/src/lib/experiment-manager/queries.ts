@@ -3,11 +3,13 @@ import "server-only";
 import type { FormAnswers } from "@hoshina-dev/forms";
 
 import type { SessionPayload } from "@/lib/auth/definitions";
+import { usersApi } from "@/lib/custapi/client";
 import {
   findTicketByExpId,
   listTickets,
   type Ticket,
 } from "@/lib/ticketing/client";
+import { ticketStatusIndex } from "@/lib/ticketing/status";
 
 import {
   type ExperimentDetail,
@@ -71,26 +73,48 @@ function extractAnswersFromQuestions(
   return Object.keys(answers).length > 0 ? answers : undefined;
 }
 
-function derivePhase(detail: ExperimentDetail): ExperimentPhase {
-  if (detail.userForm?.questions?.length) {
-    const anyUnanswered = detail.userForm.questions.some(
-      (q) =>
-        (q as Record<string, unknown>)["required"] &&
-        ((q as Record<string, unknown>)["value"] === undefined ||
-          (q as Record<string, unknown>)["value"] === null),
+type QuestionSnapshot = { id: string; [key: string]: unknown };
+
+function questionHasValue(q: QuestionSnapshot): boolean {
+  return q.value !== undefined && q.value !== null;
+}
+
+function isClientSubmissionComplete(ticket: Ticket | null | undefined): boolean {
+  if (!ticket?.status) return false;
+  return ticketStatusIndex(ticket.status) >= ticketStatusIndex("PENDING");
+}
+
+function derivePhase(
+  detail: ExperimentDetail,
+  ticket?: Ticket | null,
+): ExperimentPhase {
+  const userQuestions =
+    (detail.userForm?.questions as QuestionSnapshot[] | undefined) ?? [];
+  const workerQuestions =
+    (detail.workerForm?.questions as QuestionSnapshot[] | undefined) ?? [];
+
+  if (userQuestions.length > 0) {
+    const unansweredRequiredUser = userQuestions.some(
+      (q) => q.required && !questionHasValue(q),
     );
-    if (anyUnanswered) return "user";
+    if (unansweredRequiredUser) return "user";
+
+    if (ticket) {
+      if (!isClientSubmissionComplete(ticket)) return "user";
+    } else {
+      const hasUserValues = userQuestions.some(questionHasValue);
+      const requiredUserCount = userQuestions.filter((q) => q.required).length;
+      if (requiredUserCount === 0 && !hasUserValues) return "user";
+
+      const workerHasValues = workerQuestions.some(questionHasValue);
+      if (!workerHasValues) return "user";
+    }
   }
-  if (detail.workerForm?.questions?.length) {
-    const requiredQuestions = detail.workerForm.questions.filter(
-      (q) => (q as Record<string, unknown>)["required"],
-    );
-    if (requiredQuestions.length > 0) {
-      const allAnswered = requiredQuestions.every(
-        (q) =>
-          (q as Record<string, unknown>)["value"] !== undefined &&
-          (q as Record<string, unknown>)["value"] !== null,
-      );
+
+  if (workerQuestions.length > 0) {
+    const requiredWorker = workerQuestions.filter((q) => q.required);
+    if (requiredWorker.length > 0) {
+      const allAnswered = requiredWorker.every(questionHasValue);
       if (allAnswered) return "result";
     }
   }
@@ -99,6 +123,7 @@ function derivePhase(detail: ExperimentDetail): ExperimentPhase {
 
 export function deriveRunStateFromDetail(
   detail: ExperimentDetail,
+  ticket?: Ticket | null,
 ): ExperimentRunState | null {
   try {
     const templateLike = {
@@ -127,7 +152,7 @@ export function deriveRunStateFromDetail(
       }>,
     );
 
-    const phase = derivePhase(detail);
+    const phase = derivePhase(detail, ticket);
 
     return {
       schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
@@ -167,6 +192,19 @@ export async function fetchTemplateForm(sampleId: string, templateId: string) {
   return templateToFormSchema(template);
 }
 
+async function buildUserNameLookup(): Promise<Map<string, string>> {
+  const lookup = new Map<string, string>();
+  try {
+    const users = await usersApi.usersGet();
+    for (const user of users) {
+      lookup.set(user.id, user.name);
+    }
+  } catch {
+    // custapi unavailable — requester names stay unknown
+  }
+  return lookup;
+}
+
 async function buildTemplateNameLookup(
   experiments: ExperimentSummary[],
 ): Promise<Map<string, string>> {
@@ -199,6 +237,7 @@ export async function fetchExperiments(
   } catch {
     tickets = [];
   }
+  const userNames = await buildUserNameLookup();
   const ticketByExpId = new Map<string, Ticket>();
   for (const ticket of tickets) {
     if (ticket.experimentTemplate?.id) {
@@ -222,8 +261,8 @@ export async function fetchExperiments(
   return experiments
     .map((row, index): ExperimentListItem | null => {
       const detail = details[index];
-      const runState = detail ? deriveRunStateFromDetail(detail) : null;
       const ticket = ticketByExpId.get(row.id) ?? null;
+      const runState = detail ? deriveRunStateFromDetail(detail, ticket) : null;
       if (!isExperimentVisible(session, runState, ticket, tickets.length > 0)) {
         return null;
       }
@@ -239,7 +278,10 @@ export async function fetchExperiments(
         createdAt: row.created_at,
         phase: runState?.state.phase ?? null,
         stateKind: detail ? "current" : "missing",
-        createdByName: runState?.createdBy?.name ?? null,
+        createdByName:
+          runState?.createdBy?.name ??
+          (ticket?.userId ? userNames.get(ticket.userId) : null) ??
+          null,
         technicianLogCount: runState?.technicianLogs.length ?? 0,
         ticketStatus: ticket?.status ?? null,
       };
@@ -250,11 +292,6 @@ export async function fetchExperiments(
 
 export async function fetchExperimentRun(expId: string) {
   const experiment = await getExperiment(expId);
-  const runState = deriveRunStateFromDetail(experiment);
-  const [sample, template] = await Promise.all([
-    getSample(experiment.sample_id),
-    getExperimentTemplate(experiment.sample_id, experiment.template_id),
-  ]);
 
   let ticket: Ticket | null = null;
   try {
@@ -262,6 +299,12 @@ export async function fetchExperimentRun(expId: string) {
   } catch {
     // ticketing service is advisory in the POC — ignore lookup failures
   }
+
+  const runState = deriveRunStateFromDetail(experiment, ticket);
+  const [sample, template] = await Promise.all([
+    getSample(experiment.sample_id),
+    getExperimentTemplate(experiment.sample_id, experiment.template_id),
+  ]);
 
   return {
     experiment,

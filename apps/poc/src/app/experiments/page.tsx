@@ -117,13 +117,18 @@ export default async function ExperimentsPage() {
                       </Group>
                       <Text size="sm" c="dimmed">
                         Started {formatCreatedAt(row.createdAt)}
+                        {session.appRole === "technician" && row.createdByName
+                          ? ` · Requested by ${row.createdByName}`
+                          : ""}
                       </Text>
-                      {row.createdByName && (
+                      {session.appRole === "client" && row.createdByName && (
                         <Text size="xs" c="dimmed" mt={4}>
                           Client: {row.createdByName}
-                          {row.technicianLogCount > 0
-                            ? ` · technician changes: ${row.technicianLogCount}`
-                            : ""}
+                        </Text>
+                      )}
+                      {row.technicianLogCount > 0 && (
+                        <Text size="xs" c="dimmed" mt={4}>
+                          Technician changes: {row.technicianLogCount}
                         </Text>
                       )}
                       <Text size="xs" c="dimmed" mt={4}>

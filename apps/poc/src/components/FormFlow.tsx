@@ -18,6 +18,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -86,6 +87,7 @@ function FormFlowSession({
   resume,
   onRestart,
 }: FormFlowSessionProps) {
+  const router = useRouter();
   const skipUser = !hasUserPhase(form);
   const [stage, setStage] = useState<Stage>(() =>
     resume
@@ -311,7 +313,44 @@ function FormFlowSession({
             onSubmit={(answers) => {
               setWorkerAnswers(answers);
               setPersistNotice(null);
-              setStage(2);
+              if (!expId) return;
+
+              const context: Record<string, unknown> = {
+                ...userAnswers,
+                ...answers,
+              };
+              const { results, errors } = evaluateCalculations(
+                form.calculations,
+                context,
+              );
+              const interpolated = interpolateTemplate(form.template, {
+                ...context,
+                ...results,
+              });
+
+              startTransition(async () => {
+                const result = await saveExperimentStateAction(
+                  expId,
+                  createExperimentRunState({
+                    template: form,
+                    createdBy,
+                    technicianLogs,
+                    phase: "result",
+                    user: userAnswers,
+                    worker: answers,
+                    result: {
+                      calculations: results,
+                      summary: interpolated,
+                      ...(Object.keys(errors).length ? { errors } : {}),
+                    },
+                  }),
+                );
+                if (!result.success) {
+                  setPersistError(result.error);
+                  return;
+                }
+                router.push(experimentPath(expId));
+              });
             }}
           />
         </Stack>

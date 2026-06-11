@@ -21,6 +21,7 @@ import {
   Title,
   Tooltip,
 } from "@mantine/core";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import {
@@ -28,6 +29,7 @@ import {
   getExperimentAction,
   savePdfAction,
 } from "@/app/actions/experiment-manager";
+import { templatePdfPath } from "@/lib/routes";
 
 import type {
   PageBreakComp,
@@ -211,6 +213,7 @@ export function PdfEditor({
   calculations,
   experiments,
 }: PdfEditorProps) {
+  const router = useRouter();
   const [comps, dispatch] = useReducer(compsReducer, initialComponents);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activePage, setActivePage] = useState(0);
@@ -375,10 +378,28 @@ export function PdfEditor({
   const save = async () => {
     setSaving(true);
     setSaveMsg(null);
-    const result = await savePdfAction(sampleId, lineageId, comps);
+    const result = await savePdfAction(
+      sampleId,
+      lineageId,
+      comps,
+      templateId,
+    );
     setSaving(false);
-    setSaveMsg(result.success ? { text: "Saved", ok: true } : { text: result.error, ok: false });
-    if (result.success) setTimeout(() => setSaveMsg(null), 2500);
+    if (!result.success) {
+      setSaveMsg({ text: result.error, ok: false });
+      return;
+    }
+    setSaveMsg({ text: "Saved", ok: true });
+    if (result.data.templateId !== templateId) {
+      router.push(
+        templatePdfPath({
+          sampleId,
+          templateId: result.data.templateId,
+        }),
+      );
+      router.refresh();
+    }
+    setTimeout(() => setSaveMsg(null), 2500);
   };
 
   // ── Generate report ───────────────────────────────────────────────────────
