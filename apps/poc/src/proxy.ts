@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { SESSION_COOKIE, SESSION_DURATION_MS } from "@/lib/auth/constants";
+import { sessionCookieOptions } from "@/lib/auth/cookieOptions";
 import type { AppRole } from "@/lib/auth/definitions";
 import { decryptSession } from "@/lib/auth/sessionCrypto";
 
@@ -25,13 +26,13 @@ export default async function proxy(req: NextRequest) {
 
   if (payload?.userId && session) {
     const res = NextResponse.next();
-    res.cookies.set(SESSION_COOKIE, session, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      expires: new Date(Date.now() + SESSION_DURATION_MS),
-      sameSite: "lax",
-      path: "/",
-    });
+    res.cookies.set(
+      SESSION_COOKIE,
+      session,
+      sessionCookieOptions({
+        expires: new Date(Date.now() + SESSION_DURATION_MS),
+      }),
+    );
     return res;
   }
 

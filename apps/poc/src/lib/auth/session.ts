@@ -4,6 +4,7 @@ import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 
 import { SESSION_COOKIE, SESSION_DURATION_MS } from "./constants";
+import { sessionCookieOptions } from "./cookieOptions";
 import type { SessionPayload } from "./definitions";
 
 function getEncodedKey() {
@@ -60,13 +61,13 @@ export async function createSession(user: {
   });
 
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, session, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    expires: expiresAt,
-    sameSite: "lax",
-    path: "/",
-  });
+  cookieStore.set(
+    SESSION_COOKIE,
+    session,
+    sessionCookieOptions({
+      expires: expiresAt,
+    }),
+  );
 }
 
 export async function deleteSession(): Promise<void> {
