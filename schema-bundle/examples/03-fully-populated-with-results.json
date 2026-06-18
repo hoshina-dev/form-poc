@@ -1,0 +1,131 @@
+{
+  "clientForm": {
+    "title": "Water Quality Assessment — Site Registration",
+    "description": "Field technician records site metadata before collecting water samples.",
+    "questions": [
+      {
+        "id": "site_name",
+        "type": "string",
+        "label": "Site Name",
+        "required": true,
+        "config": {
+          "placeholder": "e.g. River Bend Station 4",
+          "maxLength": 150
+        }
+      },
+      {
+        "id": "collection_date",
+        "type": "date",
+        "label": "Collection Date",
+        "required": true,
+        "config": {
+          "min": "2024-01-01",
+          "max": "2030-12-31"
+        }
+      },
+      {
+        "id": "water_source",
+        "type": "select-string",
+        "label": "Water Source Type",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "River", "value": "river" },
+            { "label": "Lake", "value": "lake" },
+            { "label": "Groundwater", "value": "groundwater" },
+            { "label": "Municipal Supply", "value": "municipal" },
+            { "label": "Reservoir", "value": "reservoir" }
+          ]
+        }
+      },
+      {
+        "id": "urgent_flag",
+        "type": "boolean",
+        "label": "Urgent — Expedited Processing Required",
+        "description": "Check if results are needed within 24 hours.",
+        "required": true
+      }
+    ]
+  },
+  "labForm": {
+    "title": "Water Quality Lab Analysis",
+    "description": "Laboratory measurements and microbial assay results.",
+    "questions": [
+      {
+        "id": "ph_value",
+        "type": "slider",
+        "label": "pH Value",
+        "required": true,
+        "config": {
+          "min": 0,
+          "max": 14,
+          "step": 0.1,
+          "default": 7.0,
+          "marks": [
+            { "value": 0, "label": "0" },
+            { "value": 7, "label": "7 (neutral)" },
+            { "value": 14, "label": "14" }
+          ]
+        }
+      },
+      {
+        "id": "turbidity_ntu",
+        "type": "number",
+        "label": "Turbidity (NTU)",
+        "required": true,
+        "config": {
+          "min": 0,
+          "max": 1000,
+          "step": 0.1
+        }
+      },
+      {
+        "id": "ecoli_cfu_per_100ml",
+        "type": "number",
+        "label": "E. coli Count (CFU / 100 mL)",
+        "required": true,
+        "config": {
+          "min": 0,
+          "max": 100000
+        }
+      },
+      {
+        "id": "analyst_rating",
+        "type": "rating",
+        "label": "Analyst Confidence in Results",
+        "description": "Rate confidence from 1 (low) to 5 (high).",
+        "config": {
+          "count": 5
+        }
+      }
+    ]
+  },
+  "calculations": {
+    "ph_in_safe_range": {
+      "formula": "6.5 <= values['ph_value'] <= 8.5",
+      "result": true
+    },
+    "is_microbiologically_safe": {
+      "formula": "values['ecoli_cfu_per_100ml'] == 0",
+      "result": false
+    },
+    "overall_safety_score": {
+      "formula": "round((10 if ph_in_safe_range else 0) + max(0, 10 - values['turbidity_ntu'] / 4), 2)",
+      "result": 17.25
+    },
+    "compliance_status": {
+      "formula": "'FAIL' if not is_microbiologically_safe else ('PASS' if overall_safety_score >= 15 else 'MARGINAL')",
+      "result": "FAIL"
+    }
+  },
+  "values": {
+    "site_name": "Chao Phraya Intake Point B",
+    "collection_date": "2026-06-15",
+    "water_source": "river",
+    "urgent_flag": true,
+    "ph_value": 7.4,
+    "turbidity_ntu": 11.0,
+    "ecoli_cfu_per_100ml": 42,
+    "analyst_rating": 4
+  }
+}

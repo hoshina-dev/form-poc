@@ -1,0 +1,115 @@
+{
+  "clientForm": {
+    "title": "Cell Culture Experiment (Lab-Initiated)",
+    "description": "No client intake required — this experiment is initiated entirely by the lab team.",
+    "questions": []
+  },
+  "labForm": {
+    "title": "Cell Culture Growth Monitoring",
+    "description": "Lab technician records all parameters for a mammalian cell culture passage.",
+    "questions": [
+      {
+        "id": "cell_line_id",
+        "type": "string",
+        "label": "Cell Line Identifier",
+        "required": true,
+        "config": {
+          "placeholder": "e.g. HeLa, CHO-K1, HEK293T",
+          "maxLength": 80
+        }
+      },
+      {
+        "id": "passage_number",
+        "type": "number",
+        "label": "Passage Number",
+        "required": true,
+        "config": {
+          "min": 1,
+          "max": 200,
+          "step": 1
+        }
+      },
+      {
+        "id": "incubation_temp_c",
+        "type": "slider",
+        "label": "Incubation Temperature (°C)",
+        "required": true,
+        "config": {
+          "min": 30,
+          "max": 42,
+          "step": 0.5,
+          "default": 37.0,
+          "marks": [
+            { "value": 37, "label": "37 °C" }
+          ]
+        }
+      },
+      {
+        "id": "culture_media",
+        "type": "select-string",
+        "label": "Culture Media",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "DMEM", "value": "dmem" },
+            { "label": "RPMI-1640", "value": "rpmi_1640" },
+            { "label": "MEM", "value": "mem" },
+            { "label": "Ham's F-12", "value": "hams_f12" }
+          ],
+          "placeholder": "Select media"
+        }
+      },
+      {
+        "id": "contamination_detected",
+        "type": "boolean",
+        "label": "Contamination Detected",
+        "required": true
+      },
+      {
+        "id": "growth_phase",
+        "type": "segmented",
+        "label": "Observed Growth Phase",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "Lag", "value": "lag" },
+            { "label": "Log", "value": "log" },
+            { "label": "Stationary", "value": "stationary" },
+            { "label": "Decline", "value": "decline" }
+          ],
+          "default": "log"
+        }
+      },
+      {
+        "id": "viability_pct",
+        "type": "number",
+        "label": "Cell Viability (%)",
+        "required": true,
+        "config": {
+          "min": 0,
+          "max": 100,
+          "step": 0.1
+        }
+      }
+    ]
+  },
+  "calculations": {
+    "culture_healthy": {
+      "formula": "not values['contamination_detected'] and values['viability_pct'] >= 80",
+      "result": ""
+    },
+    "recommended_action": {
+      "formula": "'Discard' if values['contamination_detected'] else ('Continue' if values['viability_pct'] >= 80 else 'Monitor')",
+      "result": ""
+    }
+  },
+  "values": {
+    "cell_line_id": "HEK293T",
+    "passage_number": 12,
+    "incubation_temp_c": 37.0,
+    "culture_media": "dmem",
+    "contamination_detected": false,
+    "growth_phase": "log",
+    "viability_pct": 94.5
+  }
+}

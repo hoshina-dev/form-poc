@@ -1,0 +1,286 @@
+{
+  "clientForm": {
+    "title": "Behavioural Psychology Study — Participant Questionnaire",
+    "description": "Pre-session intake capturing demographics, preferences, and study credentials.",
+    "questions": [
+      {
+        "id": "q_full_name",
+        "type": "string",
+        "label": "Full Name",
+        "required": true,
+        "config": {
+          "placeholder": "First and last name",
+          "minLength": 2,
+          "maxLength": 150
+        }
+      },
+      {
+        "id": "q_background_statement",
+        "type": "textarea",
+        "label": "Personal Background Statement",
+        "description": "Briefly describe your educational background and motivation for participating.",
+        "config": {
+          "placeholder": "Write 2–4 sentences…",
+          "minRows": 3,
+          "maxRows": 10,
+          "maxLength": 1000
+        }
+      },
+      {
+        "id": "q_participant_code",
+        "type": "password",
+        "label": "Participant Access Code",
+        "required": true,
+        "description": "The alphanumeric code provided in your invitation email.",
+        "config": {
+          "placeholder": "Enter your access code",
+          "minLength": 6,
+          "maxLength": 32
+        }
+      },
+      {
+        "id": "q_age",
+        "type": "number",
+        "label": "Age (years)",
+        "required": true,
+        "config": {
+          "min": 18,
+          "max": 100,
+          "step": 1,
+          "placeholder": "Your age"
+        }
+      },
+      {
+        "id": "q_education_level",
+        "type": "select-string",
+        "label": "Highest Education Level",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "High School / GED", "value": "high_school" },
+            { "label": "Associate Degree", "value": "associate" },
+            { "label": "Bachelor's Degree", "value": "bachelors" },
+            { "label": "Master's Degree", "value": "masters" },
+            { "label": "Doctorate or Professional Degree", "value": "doctorate" }
+          ],
+          "placeholder": "Select level"
+        }
+      },
+      {
+        "id": "q_sessions_attended",
+        "type": "select-number",
+        "label": "Number of Prior Study Sessions Attended",
+        "config": {
+          "options": [
+            { "label": "None (first time)", "value": 0 },
+            { "label": "1–2 sessions", "value": 1 },
+            { "label": "3–5 sessions", "value": 3 },
+            { "label": "More than 5", "value": 6 }
+          ],
+          "default": 0
+        }
+      },
+      {
+        "id": "q_preferred_tasks",
+        "type": "multi-select",
+        "label": "Preferred Task Categories",
+        "description": "Select all task types you feel comfortable performing.",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "Memory & Recall", "value": "memory" },
+            { "label": "Attention & Focus", "value": "attention" },
+            { "label": "Problem Solving", "value": "problem_solving" },
+            { "label": "Emotional Recognition", "value": "emotion" },
+            { "label": "Motor Coordination", "value": "motor" }
+          ],
+          "maxValues": 5
+        }
+      },
+      {
+        "id": "q_dominant_hand",
+        "type": "radio",
+        "label": "Dominant Hand",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "Right", "value": "right" },
+            { "label": "Left", "value": "left" },
+            { "label": "Ambidextrous", "value": "ambidextrous" }
+          ],
+          "default": "right"
+        }
+      },
+      {
+        "id": "q_health_conditions",
+        "type": "checkbox-group",
+        "label": "Relevant Health Conditions (check all that apply)",
+        "config": {
+          "options": [
+            { "label": "Colour blindness", "value": "colour_blindness" },
+            { "label": "Hearing impairment", "value": "hearing" },
+            { "label": "ADHD / ADD", "value": "adhd" },
+            { "label": "Anxiety disorder", "value": "anxiety" },
+            { "label": "None of the above", "value": "none" }
+          ]
+        }
+      }
+    ]
+  },
+  "labForm": {
+    "title": "Behavioural Psychology Study — Lab Assessment",
+    "description": "Researcher-facing form for recording session observations and biometric readings.",
+    "questions": [
+      {
+        "id": "q_gave_consent",
+        "type": "boolean",
+        "label": "Written Consent Form Signed",
+        "required": true,
+        "config": {
+          "default": false
+        }
+      },
+      {
+        "id": "q_session_phase",
+        "type": "segmented",
+        "label": "Current Session Phase",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "Baseline", "value": "baseline" },
+            { "label": "Intervention", "value": "intervention" },
+            { "label": "Recovery", "value": "recovery" }
+          ],
+          "default": "baseline"
+        }
+      },
+      {
+        "id": "q_stress_level",
+        "type": "slider",
+        "label": "Observed Stress Level (0 = none, 10 = extreme)",
+        "required": true,
+        "config": {
+          "min": 0,
+          "max": 10,
+          "step": 1,
+          "default": 0,
+          "marks": [
+            { "value": 0, "label": "None" },
+            { "value": 5, "label": "Moderate" },
+            { "value": 10, "label": "Extreme" }
+          ]
+        }
+      },
+      {
+        "id": "q_task_performance_rating",
+        "type": "rating",
+        "label": "Overall Task Performance",
+        "description": "Researcher's holistic rating of how well participant completed tasks.",
+        "required": true,
+        "config": {
+          "count": 5,
+          "fractions": 2,
+          "default": 3
+        }
+      },
+      {
+        "id": "q_skin_electrode_color",
+        "type": "color",
+        "label": "Electrode Pad Indicator Colour",
+        "description": "Choose the colour displayed on the electrode placement map for this participant.",
+        "config": {
+          "default": "#FF6B6B",
+          "format": "hex",
+          "swatches": ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD"]
+        }
+      },
+      {
+        "id": "q_session_date",
+        "type": "date",
+        "label": "Session Date",
+        "required": true,
+        "config": {
+          "min": "2024-01-01",
+          "max": "2030-12-31",
+          "default": "2026-06-18"
+        }
+      },
+      {
+        "id": "q_session_start_time",
+        "type": "time",
+        "label": "Session Start Time",
+        "required": true,
+        "config": {
+          "step": 900
+        }
+      },
+      {
+        "id": "q_session_start_datetime",
+        "type": "datetime",
+        "label": "Precise Session Start (date + time)",
+        "description": "Auto-stamp; override if the wall-clock time was recorded later.",
+        "config": {
+          "default": "2026-06-18T09:00:00"
+        }
+      },
+      {
+        "id": "q_observation_tags",
+        "type": "tags",
+        "label": "Observation Tags",
+        "description": "Free-form tags for notable observations during the session.",
+        "config": {
+          "placeholder": "e.g. distracted, calm, fast-responder",
+          "maxTags": 10,
+          "suggestions": [
+            "distracted",
+            "focused",
+            "anxious",
+            "calm",
+            "fast-responder",
+            "slow-responder",
+            "engaged",
+            "fatigued"
+          ]
+        }
+      }
+    ]
+  },
+  "calculations": {
+    "is_eligible": {
+      "formula": "values['q_gave_consent'] and values['q_age'] >= 18",
+      "result": true
+    },
+    "adjusted_stress_score": {
+      "formula": "round(values['q_stress_level'] * (1 + (values['q_sessions_attended'] / 10)), 2)",
+      "result": 3.3
+    },
+    "performance_tier": {
+      "formula": "'Gold' if values['q_task_performance_rating'] >= 4.5 else ('Silver' if values['q_task_performance_rating'] >= 3 else 'Bronze')",
+      "result": "Silver"
+    },
+    "session_summary": {
+      "formula": "f\"Participant: {values['q_full_name']} | Phase: {values['q_session_phase']} | Stress: {adjusted_stress_score} | Tier: {performance_tier}\"",
+      "result": "Participant: Alex Rivera | Phase: intervention | Stress: 3.3 | Tier: Silver"
+    }
+  },
+  "values": {
+    "q_full_name": "Alex Rivera",
+    "q_background_statement": "I hold a bachelor's degree in cognitive science and am interested in understanding how stress modulates working memory.",
+    "q_participant_code": "PSY2026X9",
+    "q_age": 29,
+    "q_education_level": "bachelors",
+    "q_sessions_attended": 1,
+    "q_preferred_tasks": ["attention", "problem_solving", "memory"],
+    "q_dominant_hand": "right",
+    "q_health_conditions": ["none"],
+    "q_gave_consent": true,
+    "q_session_phase": "intervention",
+    "q_stress_level": 3,
+    "q_task_performance_rating": 3.5,
+    "q_skin_electrode_color": "#4ECDC4",
+    "q_session_date": "2026-06-18",
+    "q_session_start_time": "09:15",
+    "q_session_start_datetime": "2026-06-18T09:15:00",
+    "q_observation_tags": ["focused", "fast-responder", "engaged"]
+  }
+}

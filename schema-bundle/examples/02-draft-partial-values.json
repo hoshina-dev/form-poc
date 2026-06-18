@@ -1,0 +1,121 @@
+{
+  "clientForm": {
+    "title": "Nutritional Biomarker Study — Participant Intake",
+    "description": "Collects participant demographics and dietary background before blood draw.",
+    "questions": [
+      {
+        "id": "participant_name",
+        "type": "string",
+        "label": "Participant Full Name",
+        "required": true,
+        "config": {
+          "placeholder": "First and last name",
+          "maxLength": 200
+        }
+      },
+      {
+        "id": "participant_age",
+        "type": "number",
+        "label": "Age (years)",
+        "required": true,
+        "config": {
+          "min": 18,
+          "max": 90,
+          "step": 1
+        }
+      },
+      {
+        "id": "diet_type",
+        "type": "select-string",
+        "label": "Primary Diet Pattern",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "Omnivore", "value": "omnivore" },
+            { "label": "Vegetarian", "value": "vegetarian" },
+            { "label": "Vegan", "value": "vegan" },
+            { "label": "Ketogenic", "value": "keto" },
+            { "label": "Mediterranean", "value": "mediterranean" }
+          ]
+        }
+      },
+      {
+        "id": "consent_given",
+        "type": "boolean",
+        "label": "Informed Consent Obtained",
+        "required": true
+      }
+    ]
+  },
+  "labForm": {
+    "title": "Biomarker Analysis",
+    "description": "Lab technician records assay results from participant blood samples.",
+    "questions": [
+      {
+        "id": "glucose_mmol",
+        "type": "number",
+        "label": "Fasting Glucose (mmol/L)",
+        "required": true,
+        "config": {
+          "min": 1.0,
+          "max": 30.0,
+          "step": 0.1
+        }
+      },
+      {
+        "id": "cholesterol_mmol",
+        "type": "number",
+        "label": "Total Cholesterol (mmol/L)",
+        "required": true,
+        "config": {
+          "min": 1.0,
+          "max": 15.0,
+          "step": 0.01
+        }
+      },
+      {
+        "id": "sample_quality",
+        "type": "radio",
+        "label": "Sample Quality Rating",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "Excellent", "value": "excellent" },
+            { "label": "Acceptable", "value": "acceptable" },
+            { "label": "Poor — repeat required", "value": "poor" }
+          ]
+        }
+      },
+      {
+        "id": "analysis_notes",
+        "type": "textarea",
+        "label": "Analysis Notes",
+        "config": {
+          "placeholder": "Any anomalies or observations during analysis…",
+          "minRows": 2,
+          "maxRows": 8
+        }
+      }
+    ]
+  },
+  "calculations": {
+    "metabolic_risk_score": {
+      "formula": "(values['glucose_mmol'] / 5.5) + (values['cholesterol_mmol'] / 5.2)",
+      "result": ""
+    },
+    "is_high_risk": {
+      "formula": "metabolic_risk_score > 2.0",
+      "result": ""
+    },
+    "risk_category": {
+      "formula": "'High' if is_high_risk else ('Moderate' if metabolic_risk_score > 1.5 else 'Low')",
+      "result": ""
+    }
+  },
+  "values": {
+    "participant_name": "Jane Doe",
+    "diet_type": "mediterranean",
+    "glucose_mmol": 5.2,
+    "sample_quality": "excellent"
+  }
+}

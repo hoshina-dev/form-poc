@@ -1,0 +1,63 @@
+{
+  "clientForm": {
+    "title": "Experiment Registration",
+    "description": "Initial client intake for a new experiment run.",
+    "questions": [
+      {
+        "id": "exp_name",
+        "type": "string",
+        "label": "Experiment Name",
+        "required": true,
+        "config": {
+          "placeholder": "Enter a descriptive experiment name",
+          "maxLength": 120
+        }
+      },
+      {
+        "id": "sample_count",
+        "type": "number",
+        "label": "Number of Samples",
+        "required": true,
+        "config": {
+          "min": 1,
+          "max": 1000
+        }
+      }
+    ]
+  },
+  "labForm": {
+    "title": "Lab Processing",
+    "questions": [
+      {
+        "id": "lab_receipt_confirmed",
+        "type": "boolean",
+        "label": "Lab Receipt Confirmed",
+        "required": true
+      },
+      {
+        "id": "reagent_type",
+        "type": "select-string",
+        "label": "Reagent Type",
+        "required": true,
+        "config": {
+          "options": [
+            { "label": "Buffer A", "value": "buffer_a" },
+            { "label": "Buffer B", "value": "buffer_b" },
+            { "label": "Saline", "value": "saline" }
+          ],
+          "placeholder": "Select a reagent"
+        }
+      }
+    ]
+  },
+  "calculations": {
+    "total_samples": {
+      "formula": "values['sample_count']",
+      "result": ""
+    },
+    "is_large_batch": {
+      "formula": "values['sample_count'] > 100",
+      "result": ""
+    }
+  }
+}
