@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  type AnswerValue,
+  type ExperimentTemplate,
   type FormAnswers,
   FormRenderer,
-  type FormSchema,
-  type QuestionId,
 } from "@hoshina-dev/forms";
 import {
   Alert,
@@ -34,7 +32,6 @@ import {
 } from "@/app/actions/experiment-manager";
 import { LinkAnchor } from "@/components/LinkButton";
 import type { SessionUser } from "@/lib/auth/definitions";
-import { evaluateCalculations, interpolateTemplate } from "@/lib/evaluator";
 import type { TemplateRef } from "@/lib/experiment-manager/mappers";
 import {
   createExperimentRunState,
@@ -46,7 +43,9 @@ import { experimentPath } from "@/lib/routes";
 type Stage = 0 | 1 | 2;
 
 interface FormFlowProps {
-  form: FormSchema;
+  template: ExperimentTemplate;
+  title: string;
+  description?: string;
   viewer: SessionUser;
   /** When set, creates an experiment instance and persists phase state via BFF. */
   experimentRef?: TemplateRef;
@@ -59,15 +58,15 @@ interface FormFlowProps {
   onRestart?: () => void;
 }
 
-function hasUserPhase(form: FormSchema): boolean {
-  return form.userForm.questions.length > 0;
+function hasUserPhase(template: ExperimentTemplate): boolean {
+  return template.clientForm.questions.length > 0;
 }
 
 export function FormFlow({ onRestart, ...props }: FormFlowProps) {
   const [session, setSession] = useState(0);
   const sessionKey = props.resume
     ? `resume-${props.resume.expId}-${session}`
-    : `${props.form.id}-${session}`;
+    : `session-${session}`;
 
   const handleRestart = onRestart ?? (() => setSession((value) => value + 1));
 
@@ -81,14 +80,16 @@ interface FormFlowSessionProps extends FormFlowProps {
 }
 
 function FormFlowSession({
-  form,
+  template,
+  title,
+  description,
   viewer,
   experimentRef,
   resume,
   onRestart,
 }: FormFlowSessionProps) {
   const router = useRouter();
-  const skipUser = !hasUserPhase(form);
+  const skipUser = !hasUserPhase(template);
   const [stage, setStage] = useState<Stage>(() =>
     resume
       ? phaseToStage(resume.runState.state.phase, skipUser)
@@ -163,7 +164,7 @@ function FormFlowSession({
         await persistState(
           newExpId,
           createExperimentRunState({
-            template: form,
+            template,
             createdBy,
             technicianLogs,
             phase: skipUser ? "worker" : "user",
@@ -181,30 +182,20 @@ function FormFlowSession({
     skipUser,
     persistState,
     resume?.expId,
-    form,
+    template,
     createdBy,
     technicianLogs,
   ]);
 
-  const lockedValues = useMemo(() => {
-    const locked: Record<QuestionId, AnswerValue> = {};
-    for (const q of form.workerForm.questions) {
-      if (q.prefillFrom !== undefined) {
-        locked[q.id] = userAnswers[q.prefillFrom];
-      }
-    }
-    return locked;
-  }, [form.workerForm.questions, userAnswers]);
-
-  const userLabel = form.userForm.title || "User";
-  const workerLabel = form.workerForm.title || "Worker";
+  const clientLabel = template.clientForm.title || "Client";
+  const labLabel = template.labForm.title || "Lab";
   const canPersistDraft = Boolean(expId);
 
   return (
     <Stack gap="md">
       <div>
-        <Title order={2}>{form.title}</Title>
-        {form.description && <Text c="dimmed">{form.description}</Text>}
+        <Title order={2}>{title}</Title>
+        {description && <Text c="dimmed">{description}</Text>}
         {experimentRef && expId && (
           <Text size="xs" c="dimmed" mt={4}>
             experiment {expId}
@@ -228,14 +219,14 @@ function FormFlowSession({
       )}
 
       <Stepper active={stage} allowNextStepsSelect={false}>
-        {!skipUser && <Stepper.Step label="Client" description={userLabel} />}
-        <Stepper.Step label="Technician" description={workerLabel} />
+        {!skipUser && <Stepper.Step label="Client" description={clientLabel} />}
+        <Stepper.Step label="Technician" description={labLabel} />
         <Stepper.Step label="Result" description="Computed output" />
       </Stepper>
 
       {stage === 0 && !skipUser && isClient && (
         <FormRenderer
-          section={form.userForm}
+          doc={template.clientForm}
           initialValues={userAnswers}
           submitLabel="Submit to technician"
           onSaveDraft={
@@ -246,7 +237,7 @@ function FormFlowSession({
                     persistState(
                       expId!,
                       createExperimentRunState({
-                        template: form,
+                        template,
                         createdBy,
                         technicianLogs,
                         phase: "user",
@@ -267,7 +258,7 @@ function FormFlowSession({
                 persistState(
                   expId,
                   createExperimentRunState({
-                    template: form,
+                    template,
                     createdBy,
                     technicianLogs,
                     phase: "worker",
@@ -284,11 +275,20 @@ function FormFlowSession({
 
       {stage === 1 && isTechnician && (
         <Stack gap="md">
+          {template.clientForm.questions.length > 0 && (
+            <Paper withBorder p="md" radius="md">
+              <Title order={4}>Client submission</Title>
+              <FormRenderer
+                doc={template.clientForm}
+                initialValues={userAnswers}
+                readOnly
+              />
+            </Paper>
+          )}
           <FormRenderer
-            section={form.workerForm}
-            lockedValues={lockedValues}
+            doc={template.labForm}
             initialValues={workerAnswers}
-            submitLabel="Submit & calculate"
+            submitLabel="Submit & finish"
             onSaveDraft={
               canPersistDraft
                 ? (answers) => {
@@ -297,7 +297,7 @@ function FormFlowSession({
                       persistState(
                         expId!,
                         createExperimentRunState({
-                          template: form,
+                          template,
                           createdBy,
                           technicianLogs,
                           phase: "worker",
@@ -315,34 +315,16 @@ function FormFlowSession({
               setPersistNotice(null);
               if (!expId) return;
 
-              const context: Record<string, unknown> = {
-                ...userAnswers,
-                ...answers,
-              };
-              const { results, errors } = evaluateCalculations(
-                form.calculations,
-                context,
-              );
-              const interpolated = interpolateTemplate(form.template, {
-                ...context,
-                ...results,
-              });
-
               startTransition(async () => {
                 const result = await saveExperimentStateAction(
                   expId,
                   createExperimentRunState({
-                    template: form,
+                    template,
                     createdBy,
                     technicianLogs,
                     phase: "result",
                     user: userAnswers,
                     worker: answers,
-                    result: {
-                      calculations: results,
-                      summary: interpolated,
-                      ...(Object.keys(errors).length ? { errors } : {}),
-                    },
                   }),
                 );
                 if (!result.success) {
@@ -358,7 +340,7 @@ function FormFlowSession({
 
       {stage === 2 && (
         <ResultView
-          form={form}
+          template={template}
           userAnswers={userAnswers}
           workerAnswers={workerAnswers}
           expId={expId}
@@ -387,7 +369,7 @@ function WaitingForTechnician({ expId }: { expId: string | null }) {
 }
 
 interface ResultViewProps {
-  form: FormSchema;
+  template: ExperimentTemplate;
   userAnswers: FormAnswers;
   workerAnswers: FormAnswers;
   expId: string | null;
@@ -395,26 +377,12 @@ interface ResultViewProps {
 }
 
 function ResultView({
-  form,
+  template,
   userAnswers,
   workerAnswers,
   expId,
   onRestart,
 }: ResultViewProps) {
-  const context: Record<string, unknown> = { ...userAnswers, ...workerAnswers };
-  const { results, errors } = evaluateCalculations(form.calculations, context);
-  const fullContext = { ...context, ...results };
-  const interpolated = interpolateTemplate(form.template, fullContext);
-
-  const output: Record<string, unknown> = {
-    user: userAnswers,
-    worker: workerAnswers,
-    calculations: results,
-  };
-  if (Object.keys(errors).length) {
-    output.errors = errors;
-  }
-
   const [, startTransition] = useTransition();
   const savedRef = useRef(false);
   const [persistError, setPersistError] = useState<string | null>(null);
@@ -426,15 +394,10 @@ function ResultView({
       saveExperimentStateAction(
         expId,
         createExperimentRunState({
-          template: form,
+          template,
           phase: "result",
           user: userAnswers,
           worker: workerAnswers,
-          result: {
-            calculations: results,
-            summary: interpolated,
-            ...(Object.keys(errors).length ? { errors } : {}),
-          },
         }),
       ).then((result) => {
         if (!result.success) {
@@ -442,16 +405,7 @@ function ResultView({
         }
       }),
     );
-  }, [
-    expId,
-    form,
-    userAnswers,
-    workerAnswers,
-    results,
-    errors,
-    interpolated,
-    startTransition,
-  ]);
+  }, [expId, template, userAnswers, workerAnswers, startTransition]);
 
   return (
     <Stack gap="md">
@@ -462,31 +416,34 @@ function ResultView({
       )}
 
       <Paper withBorder p="md" radius="md">
-        <Title order={4}>Summary</Title>
-        <Text mt="xs">{interpolated}</Text>
-      </Paper>
-
-      <Paper withBorder p="md" radius="md">
-        <Title order={4}>Output JSON</Title>
+        <Title order={4}>Collected values</Title>
         <Code block mt="xs">
-          {JSON.stringify(output, null, 2)}
+          {JSON.stringify({ client: userAnswers, lab: workerAnswers }, null, 2)}
         </Code>
       </Paper>
 
-      {Object.keys(errors).length > 0 && (
-        <Alert color="red" variant="light" title="Calculation errors">
-          <Stack gap={4}>
-            {Object.entries(errors).map(([name, msg]) => (
-              <Text size="sm" key={name}>
-                <Text component="span" fw={600}>
-                  {name}
-                </Text>
-                : {msg}
+      <Paper withBorder p="md" radius="md">
+        <Title order={4}>Calculations</Title>
+        <Stack gap="sm" mt="xs">
+          {Object.entries(template.calculations).map(([name, calc]) => (
+            <div key={name}>
+              <Text fw={600}>{name}</Text>
+              <Text size="sm" c="dimmed">
+                {calc.formula}
               </Text>
-            ))}
-          </Stack>
-        </Alert>
-      )}
+              {calc.result !== undefined ? (
+                <Text size="sm" mt={4}>
+                  {String(calc.result)}
+                </Text>
+              ) : (
+                <Text size="sm" c="dimmed" mt={4}>
+                  computed by backend
+                </Text>
+              )}
+            </div>
+          ))}
+        </Stack>
+      </Paper>
 
       {onRestart && (
         <Group>

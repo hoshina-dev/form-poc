@@ -102,8 +102,7 @@ export default async function ExperimentDetailPage({
     );
   }
 
-  const { experiment, form, sample, template, ticket, runState, stateKind } =
-    data!;
+  const { experiment, sample, template, ticket, runState, stateKind } = data!;
   const templateRef = {
     sampleId: experiment.sample_id,
     templateId: experiment.template_id,
@@ -121,9 +120,8 @@ export default async function ExperimentDetailPage({
   if (!canViewExperiment(session, runState)) {
     notFound();
   }
-  const displayTitle = stateKind === "current" ? form.title : template.name;
-  const displayDescription =
-    stateKind === "current" ? form.description : template.description;
+  const displayTitle = experiment.title ?? template.name;
+  const displayDescription = template.description ?? undefined;
   const latestTechnicianLog = runState?.technicianLogs.at(-1);
   const statusRows = runState
     ? [

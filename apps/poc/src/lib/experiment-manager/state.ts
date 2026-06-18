@@ -1,4 +1,4 @@
-import { FormAnswers, FormSchema } from "@hoshina-dev/forms";
+import { ExperimentTemplate, FormAnswers } from "@hoshina-dev/forms";
 import { z } from "zod";
 
 export const EXPERIMENT_RUN_STATE_SCHEMA_VERSION = 2;
@@ -17,7 +17,7 @@ function stripNullFields(value: unknown): unknown {
   return value;
 }
 
-const TemplateSnapshot = z.preprocess(stripNullFields, FormSchema);
+const TemplateSnapshot = z.preprocess(stripNullFields, ExperimentTemplate);
 
 const ExperimentRunResult = z
   .object({
@@ -84,7 +84,7 @@ export type ExperimentActor = z.infer<typeof ExperimentActor>;
 export type TechnicianLog = z.infer<typeof TechnicianLog>;
 
 interface CreateExperimentRunStateInput {
-  template: FormSchema;
+  template: ExperimentTemplate;
   phase: ExperimentPhase;
   createdBy?: ExperimentActor;
   technicianLogs?: TechnicianLog[];

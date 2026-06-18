@@ -1,8 +1,9 @@
 import type {
-  FormSchema,
-  FormSection,
-  WorkerFormSection,
+  AnswerValue,
+  ExperimentTemplate,
+  FormAnswers,
 } from "@hoshina-dev/forms";
+import { ExperimentTemplate as ExperimentTemplateSchema } from "@hoshina-dev/forms";
 
 import type {
   ExperimentTemplateCreate,
@@ -25,67 +26,147 @@ export interface TemplateSummary {
   description?: string;
 }
 
-function asFormSection(
-  section: ExperimentTemplateDetail["userForm"],
-): FormSection {
-  if (!section?.questions?.length) {
-    return {
-      title: section?.title ?? "",
-      description: section?.description ?? undefined,
-      questions: [],
-    };
-  }
+export interface LoadedTemplate {
+  id: string;
+  lineageId: string;
+  meta: { title: string; description?: string };
+  template: ExperimentTemplate;
+  valid: boolean;
+}
+
+function mapStringCalcsToObject(
+  calcs: Record<string, string> | undefined,
+): Record<string, { formula: string }> {
+  if (!calcs) return {};
+  return Object.fromEntries(
+    Object.entries(calcs).map(([name, formula]) => [name, { formula }]),
+  );
+}
+
+export function mapObjectCalcsToString(
+  calcs: ExperimentTemplate["calculations"],
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(calcs).map(([name, { formula }]) => [name, formula]),
+  );
+}
+
+export function templateDetailToLoaded(
+  detail: ExperimentTemplateDetail,
+): LoadedTemplate {
+  const candidate = {
+    clientForm: detail.userForm ?? { title: "", questions: [] },
+    labForm: detail.workerForm ?? { title: "", questions: [] },
+    calculations: mapStringCalcsToObject(detail.calculations),
+  };
+  const parsed = ExperimentTemplateSchema.safeParse(candidate);
+  const meta = {
+    title: detail.name,
+    description: detail.description ?? undefined,
+  };
   return {
-    title: section.title ?? "",
-    description: section.description ?? undefined,
-    questions: section.questions as FormSection["questions"],
+    id: detail.id,
+    lineageId: detail.lineage_id,
+    meta,
+    template: parsed.success ? parsed.data : (candidate as ExperimentTemplate),
+    valid: parsed.success,
   };
 }
 
-function asWorkerFormSection(
-  section: ExperimentTemplateDetail["workerForm"],
-): WorkerFormSection {
-  return {
-    title: section.title ?? "",
-    description: section.description ?? undefined,
-    questions: section.questions as WorkerFormSection["questions"],
-  };
-}
-
-export function templateToFormSchema(
-  template: ExperimentTemplateDetail,
-): FormSchema {
-  return {
-    id: template.id,
-    title: template.name,
-    description: template.description ?? undefined,
-    userForm: asFormSection(template.userForm),
-    workerForm: asWorkerFormSection(template.workerForm),
-    calculations: template.calculations,
-    template: template.template,
-  };
-}
-
-export function formSchemaToTemplateCreate(
-  form: FormSchema,
+export function templateToCreate(
+  meta: { title: string; description?: string },
+  template: ExperimentTemplate,
 ): ExperimentTemplateCreate {
   return {
-    title: form.title,
-    description: form.description ?? null,
+    title: meta.title,
+    description: meta.description ?? null,
     userForm:
-      form.userForm.questions.length > 0
-        ? (form.userForm as ExperimentTemplateCreate["userForm"])
+      template.clientForm.questions.length > 0
+        ? (template.clientForm as ExperimentTemplateCreate["userForm"])
         : null,
-    workerForm: form.workerForm as ExperimentTemplateCreate["workerForm"],
-    calculations: form.calculations,
-    template: form.template,
+    workerForm: template.labForm as ExperimentTemplateCreate["workerForm"],
+    calculations: mapObjectCalcsToString(template.calculations),
+    template: "",
   };
 }
 
-export function formSchemaToTemplateUpdate(
-  form: FormSchema,
+export function templateToUpdate(
+  meta: { title: string; description?: string },
+  template: ExperimentTemplate,
 ): ExperimentTemplateUpdate {
-  return formSchemaToTemplateCreate(form);
+  return templateToCreate(meta, template);
+}
+
+type QuestionSnapshot = {
+  id: string;
+  type?: string;
+  config?: { questions?: Array<{ id: string }> };
+  value?: unknown;
+  [key: string]: unknown;
+};
+
+export function extractValues(
+  questions: QuestionSnapshot[] | undefined,
+): FormAnswers {
+  if (!questions?.length) return {};
+  const answers: FormAnswers = {};
+  for (const q of questions) {
+    if (q.type === "repeatable-group") {
+      const groupValue = q.value;
+      if (
+        groupValue &&
+        typeof groupValue === "object" &&
+        !Array.isArray(groupValue)
+      ) {
+        for (const [childId, childValue] of Object.entries(
+          groupValue as Record<string, unknown>,
+        )) {
+          if (childValue !== undefined && childValue !== null) {
+            answers[childId] = childValue as AnswerValue;
+          }
+        }
+      }
+      continue;
+    }
+    if (q.value !== undefined && q.value !== null) {
+      answers[q.id] = q.value as AnswerValue;
+    }
+  }
+  return answers;
+}
+
+export function injectValues(
+  form: {
+    title?: string | null;
+    description?: string | null;
+    questions: unknown[];
+  },
+  values: FormAnswers | undefined,
+): {
+  title?: string | null;
+  description?: string | null;
+  questions: unknown[];
+} {
+  if (!values) return form;
+  return {
+    title: form.title,
+    description: form.description,
+    questions: (form.questions as QuestionSnapshot[]).map((q) => {
+      if (q.type === "repeatable-group") {
+        const childQuestions = q.config?.questions ?? [];
+        const groupValue: Record<string, AnswerValue> = {};
+        for (const child of childQuestions) {
+          if (child.id in values && values[child.id] !== undefined) {
+            groupValue[child.id] = values[child.id]!;
+          }
+        }
+        return Object.keys(groupValue).length > 0
+          ? { ...q, value: groupValue }
+          : q;
+      }
+      return q.id in values ? { ...q, value: values[q.id] } : q;
+    }),
+  };
 }
 
 export function toTemplateSummary(

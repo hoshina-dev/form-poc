@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { BuilderApp } from "@/components/builder/BuilderApp";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { requireSession } from "@/lib/auth/dal";
-import { emptyForm } from "@/lib/builder";
+import { emptyDraft } from "@/lib/builder";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import { fetchSample } from "@/lib/experiment-manager/queries";
 
@@ -38,5 +38,7 @@ export default async function NewTemplateBuilderPage({
     return <ErrorPanel title="Builder unavailable" message={error} />;
   }
 
-  return <BuilderApp initial={emptyForm()} mode="create" sampleId={sampleId} />;
+  return (
+    <BuilderApp initial={emptyDraft()} mode="create" sampleId={sampleId} />
+  );
 }

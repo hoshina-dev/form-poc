@@ -1,6 +1,6 @@
 "use client";
 
-import { FormSchema } from "@hoshina-dev/forms";
+import { ExperimentTemplate } from "@hoshina-dev/forms";
 import {
   Alert,
   Button,
@@ -9,15 +9,13 @@ import {
   Group,
   Paper,
   Stack,
-  Text,
-  Textarea,
   TextInput,
   Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import {
   createTemplateAction,
@@ -26,14 +24,14 @@ import {
 } from "@/app/actions/experiment-manager";
 import { FormFlow } from "@/components/FormFlow";
 import type { SessionUser } from "@/lib/auth/definitions";
-import { type FormDraft, fromDraft, toDraft } from "@/lib/builder";
+import { type FormDraft, fromDraft } from "@/lib/builder";
 import { samplePath, templateBuilderPath, templatePdfPath } from "@/lib/routes";
 
 import { CalculationsEditor } from "./CalculationsEditor";
 import { SectionEditor } from "./SectionEditor";
 
 interface BuilderAppProps {
-  initial: FormSchema;
+  initial: FormDraft;
   mode: "create" | "edit";
   sampleId: string;
   templateId?: string;
@@ -61,29 +59,25 @@ export function BuilderApp({
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<FormDraft>({
-    initialValues: toDraft(initial),
+    initialValues: initial,
   });
 
-  const userQuestionIds = useMemo(
-    () =>
-      form.values.userForm.questions
-        .map((q) => q.id)
-        .filter((id) => id.length > 0),
-    [form.values.userForm.questions],
-  );
-
-  const draftSchema = previewOpen ? safeSchema(form.values) : null;
+  const draftTemplate = previewOpen ? safeTemplate(form.values) : null;
 
   const save = () => {
-    const parsed = safeSchema(form.values);
-    if (!parsed) {
+    const { meta, template } = fromDraft(form.values);
+    const parsed = ExperimentTemplate.safeParse(template);
+    if (!parsed.success) {
       setSaveError("Fix validation errors before saving.");
       return;
     }
     setSaveError(null);
     startTransition(async () => {
       if (mode === "create") {
-        const result = await createTemplateAction(sampleId, parsed);
+        const result = await createTemplateAction(sampleId, {
+          meta,
+          template: parsed.data,
+        });
         if (!result.success) {
           setSaveError(result.error);
           return;
@@ -100,7 +94,7 @@ export function BuilderApp({
       if (!templateId || !lineageId) return;
       const result = await updateTemplateAction(
         { sampleId, templateId },
-        parsed,
+        { meta, template: parsed.data },
         lineageId,
       );
       if (!result.success) {
@@ -138,7 +132,9 @@ export function BuilderApp({
       <Stack gap="md">
         <Group justify="space-between">
           <Title order={2}>
-            {mode === "create" ? "New template" : `Edit: ${initial.title}`}
+            {mode === "create"
+              ? "New template"
+              : `Edit: ${form.values.title || initial.title}`}
           </Title>
           <Button variant="subtle" component={Link} href={samplePath(sampleId)}>
             Back to templates
@@ -165,32 +161,9 @@ export function BuilderApp({
           </Stack>
         </Paper>
 
-        <SectionEditor form={form} path="userForm" isWorker={false} />
-        <SectionEditor
-          form={form}
-          path="workerForm"
-          isWorker
-          userQuestionIds={userQuestionIds}
-        />
+        <SectionEditor form={form} path="clientForm" />
+        <SectionEditor form={form} path="labForm" />
         <CalculationsEditor form={form} />
-
-        <Paper withBorder p="md" radius="md">
-          <Stack gap="sm">
-            <div>
-              <Title order={3}>Result template</Title>
-              <Text size="sm" c="dimmed">
-                Use <code>{"{{name}}"}</code> to interpolate user, worker, and
-                calculation values.
-              </Text>
-            </div>
-            <Textarea
-              autosize
-              minRows={3}
-              maxRows={8}
-              {...form.getInputProps("template")}
-            />
-          </Stack>
-        </Paper>
 
         <Group
           style={{
@@ -236,8 +209,13 @@ export function BuilderApp({
         size="xl"
         title="Live preview"
       >
-        {draftSchema ? (
-          <FormFlow form={draftSchema} viewer={previewUser} />
+        {draftTemplate ? (
+          <FormFlow
+            template={draftTemplate.template}
+            title={draftTemplate.meta.title}
+            description={draftTemplate.meta.description}
+            viewer={previewUser}
+          />
         ) : (
           <Alert color="red" variant="light" title="Draft is not valid">
             Fix the schema before previewing.
@@ -248,7 +226,12 @@ export function BuilderApp({
   );
 }
 
-function safeSchema(draft: FormDraft): FormSchema | null {
-  const result = FormSchema.safeParse(fromDraft(draft));
-  return result.success ? result.data : null;
+function safeTemplate(draft: FormDraft): {
+  meta: { title: string; description?: string };
+  template: ExperimentTemplate;
+} | null {
+  const { meta, template } = fromDraft(draft);
+  const parsed = ExperimentTemplate.safeParse(template);
+  if (!parsed.success) return null;
+  return { meta, template: parsed.data };
 }

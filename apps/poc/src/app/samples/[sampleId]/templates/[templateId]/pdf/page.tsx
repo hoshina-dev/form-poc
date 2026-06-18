@@ -3,15 +3,15 @@ import { notFound } from "next/navigation";
 
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { PdfEditor } from "@/components/pdf-editor/PdfEditor";
+import type { VariableGroup } from "@/components/pdf-editor/types";
+import type { PdfComp } from "@/components/pdf-editor/types";
 import { requireSession } from "@/lib/auth/dal";
 import {
   ExperimentManagerError,
-  getPdfTemplate,
   getExperimentTemplate,
+  getPdfTemplate,
   listExperiments,
 } from "@/lib/experiment-manager/client";
-import type { VariableGroup } from "@/components/pdf-editor/types";
-import type { PdfComp } from "@/components/pdf-editor/types";
 
 export const dynamic = "force-dynamic";
 
@@ -70,34 +70,72 @@ export default async function PdfEditorPage({ params }: PdfEditorPageProps) {
     // non-fatal — preview dropdown just won't have entries
   }
 
+  type SnapshotQuestion = {
+    id: string;
+    type?: string;
+    label?: string;
+    config?: {
+      default?: unknown;
+      questions?: Array<{ id: string; label?: string }>;
+    };
+  };
+
+  function expandSourceVars(
+    questions: SnapshotQuestion[],
+    tag: "client" | "lab",
+  ): Array<{ id: string; label: string }> {
+    const vars: Array<{ id: string; label: string }> = [];
+    for (const q of questions) {
+      if (q.type === "repeatable-group") {
+        for (const child of q.config?.questions ?? []) {
+          vars.push({
+            id: child.id,
+            label: `${child.label ?? child.id} (lab)`,
+          });
+        }
+      } else {
+        vars.push({
+          id: q.id,
+          label: `${q.label ?? q.id} (${tag})`,
+        });
+      }
+    }
+    return vars;
+  }
+
   // Build variable groups from template
   const sourceVars = [
-    ...(template.userForm?.questions ?? []).map((q) => ({
-      id: q.id,
-      label: `${(q as { label?: string }).label ?? q.id} (user)`,
-    })),
-    ...template.workerForm.questions.map((q) => ({
-      id: q.id,
-      label: `${(q as { label?: string }).label ?? q.id} (worker)`,
-    })),
+    ...expandSourceVars(
+      (template.userForm?.questions ?? []) as SnapshotQuestion[],
+      "client",
+    ),
+    ...expandSourceVars(
+      template.workerForm.questions as SnapshotQuestion[],
+      "lab",
+    ),
   ];
   const calcVars = Object.keys(template.calculations).map((key) => ({
     id: key,
     label: key,
   }));
   const variableGroups: VariableGroup[] = [
-    ...(sourceVars.length > 0 ? [{ name: "Source", variables: sourceVars }] : []),
-    ...(calcVars.length > 0 ? [{ name: "Calculated", variables: calcVars }] : []),
+    ...(sourceVars.length > 0
+      ? [{ name: "Source", variables: sourceVars }]
+      : []),
+    ...(calcVars.length > 0
+      ? [{ name: "Calculated", variables: calcVars }]
+      : []),
   ];
 
-  // Default values for preview (from question.default)
+  // Default values for preview (from question.config.default)
   const questionDefaults: Record<string, unknown> = {};
   for (const q of [
     ...(template.userForm?.questions ?? []),
     ...template.workerForm.questions,
-  ]) {
-    const qd = q as { id: string; default?: unknown };
-    if (qd.default !== undefined) questionDefaults[qd.id] = qd.default;
+  ] as SnapshotQuestion[]) {
+    if (q.type === "repeatable-group") continue;
+    const def = q.config?.default;
+    if (def !== undefined) questionDefaults[q.id] = def;
   }
 
   return (
@@ -108,7 +146,6 @@ export default async function PdfEditorPage({ params }: PdfEditorPageProps) {
       initialComponents={initialComponents}
       variableGroups={variableGroups}
       questionDefaults={questionDefaults}
-      calculations={template.calculations}
       experiments={experiments}
     />
   );

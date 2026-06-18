@@ -2,7 +2,6 @@
 
 import {
   ActionIcon,
-  Alert,
   Badge,
   Box,
   Button,
@@ -17,8 +16,6 @@ import {
   Tabs,
   Text,
   Textarea,
-  TextInput,
-  Title,
   Tooltip,
 } from "@mantine/core";
 import { useRouter } from "next/navigation";
@@ -29,6 +26,7 @@ import {
   getExperimentAction,
   savePdfAction,
 } from "@/app/actions/experiment-manager";
+import { extractValues } from "@/lib/experiment-manager/mappers";
 import { templatePdfPath } from "@/lib/routes";
 
 import type {
@@ -138,24 +136,6 @@ function shapeToSvg(comp: ShapeComp): string {
   return `<svg width="${w}" height="${h}" style="display:block;overflow:visible">${inner}</svg>`;
 }
 
-function buildDefaultContext(
-  variableGroups: VariableGroup[],
-  defaults: Record<string, unknown>,
-  calculations: Record<string, string>,
-): Record<string, unknown> {
-  const ctx: Record<string, unknown> = { ...defaults };
-  for (const [key, expr] of Object.entries(calculations)) {
-    try {
-      const fn = new Function(...Object.keys(ctx), `return ${expr}`);
-      ctx[key] = fn(...Object.values(ctx));
-    } catch {
-      // leave undefined
-    }
-  }
-  return ctx;
-}
-buildDefaultContext; // silence unused warning — called below
-
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PdfEditorProps {
   sampleId: string;
@@ -164,7 +144,6 @@ interface PdfEditorProps {
   initialComponents: PdfComp[];
   variableGroups: VariableGroup[];
   questionDefaults: Record<string, unknown>;
-  calculations: Record<string, string>;
   experiments: Array<{ id: string; label: string }>;
 }
 
@@ -210,7 +189,6 @@ export function PdfEditor({
   initialComponents,
   variableGroups,
   questionDefaults,
-  calculations,
   experiments,
 }: PdfEditorProps) {
   const router = useRouter();
@@ -237,58 +215,23 @@ export function PdfEditor({
     offsetY: number;
   } | null>(null);
 
-  // ── Derived context based on preview mode ────────────────────────────────
-  useEffect(() => {
-    if (previewMode === "raw") {
-      setEditorContext({});
-    } else if (previewMode === "defaults") {
-      const ctx: Record<string, unknown> = { ...questionDefaults };
-      for (const [key, expr] of Object.entries(calculations)) {
-        try {
-          const fn = new Function(...Object.keys(ctx), `return ${expr}`);
-          ctx[key] = fn(...Object.values(ctx));
-        } catch {
-          // leave undefined
-        }
-      }
-      setEditorContext(ctx);
-    }
-    // "experiment" mode is handled by onExperimentSelect
-  }, [previewMode, questionDefaults, calculations]);
+  // Preview context is derived in the preview-mode change handler below
+  // (raw/defaults) and in onExperimentSelect (experiment mode).
 
-  const onExperimentSelect = useCallback(
-    async (expId: string | null) => {
-      setSelectedExpId(expId);
-      if (!expId) {
-        setEditorContext({});
-        return;
-      }
-      const result = await getExperimentAction(expId);
-      if (!result.success) return;
-      const exp = result.data;
-      const ctx: Record<string, unknown> = {};
-      for (const q of exp.workerForm.questions) {
-        const qv = q as { id: string; value?: unknown };
-        if (qv.value !== undefined) ctx[qv.id] = qv.value;
-      }
-      if (exp.userForm?.questions) {
-        for (const q of exp.userForm.questions) {
-          const qv = q as { id: string; value?: unknown };
-          if (qv.value !== undefined) ctx[qv.id] = qv.value;
-        }
-      }
-      for (const [key, expr] of Object.entries(calculations)) {
-        try {
-          const fn = new Function(...Object.keys(ctx), `return ${expr}`);
-          ctx[key] = fn(...Object.values(ctx));
-        } catch {
-          // leave undefined
-        }
-      }
-      setEditorContext(ctx);
-    },
-    [calculations],
-  );
+  const onExperimentSelect = useCallback(async (expId: string | null) => {
+    setSelectedExpId(expId);
+    if (!expId) {
+      setEditorContext({});
+      return;
+    }
+    const result = await getExperimentAction(expId);
+    if (!result.success) return;
+    const exp = result.data;
+    setEditorContext({
+      ...extractValues(exp.workerForm?.questions),
+      ...extractValues(exp.userForm?.questions),
+    });
+  }, []);
 
   // ── Drag handlers ────────────────────────────────────────────────────────
   const startDrag = useCallback(
@@ -378,12 +321,7 @@ export function PdfEditor({
   const save = async () => {
     setSaving(true);
     setSaveMsg(null);
-    const result = await savePdfAction(
-      sampleId,
-      lineageId,
-      comps,
-      templateId,
-    );
+    const result = await savePdfAction(sampleId, lineageId, comps, templateId);
     setSaving(false);
     if (!result.success) {
       setSaveMsg({ text: result.error, ok: false });
@@ -410,7 +348,10 @@ export function PdfEditor({
     setGenerating(false);
     setSaveMsg(
       result.success
-        ? { text: "Report queued — check the experiment for the download link", ok: true }
+        ? {
+            text: "Report queued — check the experiment for the download link",
+            ok: true,
+          }
         : { text: result.error, ok: false },
     );
     setTimeout(() => setSaveMsg(null), 4000);
@@ -498,7 +439,14 @@ export function PdfEditor({
             onChange={(v) => {
               const mode = (v ?? "raw") as PreviewMode;
               setPreviewMode(mode);
-              if (mode !== "experiment") setSelectedExpId(null);
+              if (mode === "experiment") {
+                setEditorContext({});
+              } else {
+                setSelectedExpId(null);
+                setEditorContext(
+                  mode === "defaults" ? { ...questionDefaults } : {},
+                );
+              }
             }}
             data={[
               { value: "raw", label: "Show placeholders" },
@@ -577,9 +525,7 @@ export function PdfEditor({
                       {group.variables.map((v) => (
                         <Tooltip
                           key={v.id}
-                          label={
-                            copiedVar === v.id ? "Copied!" : `{{${v.id}}}`
-                          }
+                          label={copiedVar === v.id ? "Copied!" : `{{${v.id}}}`}
                           position="right"
                           withArrow
                         >
@@ -819,7 +765,15 @@ export function PdfEditor({
             overflow: "hidden",
           }}
         >
-          <Tabs defaultValue="inspector" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <Tabs
+            defaultValue="inspector"
+            style={{
+              flex: 1,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <Tabs.List>
               <Tabs.Tab value="inspector" style={{ fontSize: 12 }}>
                 Inspector
@@ -852,7 +806,10 @@ export function PdfEditor({
                 onDelete={(idx) => {
                   const next = deletePage(comps, idx);
                   dispatch({ type: "SET_COMPS", comps: next });
-                  if (activePage >= next.filter((c) => c.type !== "pagebreak").length)
+                  if (
+                    activePage >=
+                    next.filter((c) => c.type !== "pagebreak").length
+                  )
                     setActivePage(Math.max(0, activePage - 1));
                 }}
                 onNavigate={(idx) => {
@@ -860,7 +817,10 @@ export function PdfEditor({
                   const pageEl = canvasRef.current?.querySelector<HTMLElement>(
                     `[data-page="${idx}"]`,
                   );
-                  pageEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  pageEl?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
                 }}
               />
             </Tabs.Panel>
@@ -993,7 +953,9 @@ function InspectorPanel({ comp, onChange }: InspectorPanelProps) {
             autosize
             minRows={2}
             maxRows={5}
-            onChange={(e) => onChange({ content: e.target.value } as Partial<PdfComp>)}
+            onChange={(e) =>
+              onChange({ content: e.target.value } as Partial<PdfComp>)
+            }
           />
 
           <Text size="xs" fw={600} mt="xs">
@@ -1146,9 +1108,7 @@ function PagesPanel({
           style={{
             cursor: "pointer",
             background:
-              idx === activePage
-                ? "var(--mantine-color-blue-0)"
-                : undefined,
+              idx === activePage ? "var(--mantine-color-blue-0)" : undefined,
           }}
           onClick={() => onNavigate(idx)}
         >

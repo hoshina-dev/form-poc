@@ -28,7 +28,10 @@ type JsonSchemaObject = Record<string, unknown>;
 const DISCRIMINATOR_FIELD = "type";
 
 const FIELD_DESCRIPTIONS: Record<string, string> = {
+  config: "Type-specific configuration object.",
   count: "Number of rating icons to display.",
+  itemLabel: "Singular noun for one repetition, e.g. 'Measurement'.",
+  questions: "Child questions repeated each iteration.",
   default: "Initial value used before the user changes the answer.",
   description: "Optional helper text shown under the question label.",
   format: "Color value format accepted by the color input.",
@@ -136,6 +139,11 @@ const OUTPUT_VALUE_TYPES: Record<
     typeLabel: "string | undefined",
     description: "Stored as an HH:mm time string, or undefined when empty.",
   },
+  "repeatable-group": {
+    typeLabel: "object (columnar)",
+    description:
+      "Stores one array per child question id; each array has `count` entries (one per repetition).",
+  },
 };
 
 interface PageProps {
@@ -174,7 +182,7 @@ export default async function GalleryDetailPage({ params }: PageProps) {
         <Text size="sm" c="dimmed" mb="xs">
           Generated from the Zod schema for this question type.
         </Text>
-        <SchemaTable schema={jsonSchema} />
+        <SchemaTable schema={jsonSchema} questionType={entry.type} />
       </Paper>
     </Stack>
   );
@@ -184,7 +192,20 @@ export function generateStaticParams() {
   return GALLERY.map((entry) => ({ type: entry.type }));
 }
 
-function SchemaTable({ schema }: { schema: unknown }) {
+interface SchemaFieldRow {
+  name: string;
+  property: unknown;
+  required: boolean;
+  configSubfield?: boolean;
+}
+
+function SchemaTable({
+  schema,
+  questionType,
+}: {
+  schema: unknown;
+  questionType: QuestionType;
+}) {
   const schemaObject = asSchemaObject(schema);
   const properties = asSchemaObject(schemaObject?.properties);
   const entries = Object.entries(properties ?? {});
@@ -195,6 +216,7 @@ function SchemaTable({ schema }: { schema: unknown }) {
       ? schemaObject.required.filter((item) => typeof item === "string")
       : [],
   );
+  const fieldRows = buildSchemaFieldRows(fieldEntries, required);
 
   if (!properties) {
     return (
@@ -225,42 +247,102 @@ function SchemaTable({ schema }: { schema: unknown }) {
             </TableTr>
           </TableThead>
           <TableTbody>
-            {fieldEntries.map(([name, property]) => {
-              const propertyObject = asSchemaObject(property);
+            {fieldRows.map(
+              ({ name, property, required: isRequired, configSubfield }) => {
+                const propertyObject = asSchemaObject(property);
 
-              return (
-                <TableTr key={name}>
-                  <TableTd>
-                    <Group gap="xs">
-                      <Code>{name}</Code>
-                    </Group>
-                  </TableTd>
-                  <TableTd>{describeType(propertyObject)}</TableTd>
-                  <TableTd>
-                    <Badge
-                      color={required.has(name) ? "green" : "gray"}
-                      variant="light"
-                    >
-                      {required.has(name) ? "Yes" : "No"}
-                    </Badge>
-                  </TableTd>
-                  <TableTd>
-                    <Text size="sm">
-                      {FIELD_DESCRIPTIONS[name] ?? "Additional configuration."}
-                    </Text>
-                  </TableTd>
-                  <TableTd>
-                    <Text size="sm" c="dimmed">
-                      {describeDetails(name, propertyObject)}
-                    </Text>
-                  </TableTd>
-                </TableTr>
-              );
-            })}
+                return (
+                  <TableTr key={name}>
+                    <TableTd>
+                      <Group gap="xs" pl={configSubfield ? "md" : 0}>
+                        {configSubfield ? (
+                          <Text size="xs" c="dimmed">
+                            config
+                          </Text>
+                        ) : null}
+                        <Code>{name}</Code>
+                      </Group>
+                    </TableTd>
+                    <TableTd>{describeType(propertyObject)}</TableTd>
+                    <TableTd>
+                      <Badge
+                        color={isRequired ? "green" : "gray"}
+                        variant="light"
+                      >
+                        {isRequired ? "Yes" : "No"}
+                      </Badge>
+                    </TableTd>
+                    <TableTd>
+                      <Text size="sm">
+                        {fieldDescription(name, questionType)}
+                      </Text>
+                    </TableTd>
+                    <TableTd>
+                      <Text size="sm" c="dimmed">
+                        {describeDetails(name, propertyObject)}
+                      </Text>
+                    </TableTd>
+                  </TableTr>
+                );
+              },
+            )}
           </TableTbody>
         </Table>
       </div>
     </Stack>
+  );
+}
+
+function buildSchemaFieldRows(
+  fieldEntries: [string, unknown][],
+  required: Set<string>,
+): SchemaFieldRow[] {
+  const rows: SchemaFieldRow[] = [];
+
+  for (const [name, property] of fieldEntries) {
+    rows.push({ name, property, required: required.has(name) });
+
+    if (name !== "config") continue;
+
+    const configSchema = asSchemaObject(property);
+    const configProperties = asSchemaObject(configSchema?.properties);
+    if (!configProperties) continue;
+
+    const configRequired = new Set(
+      Array.isArray(configSchema?.required)
+        ? configSchema.required.filter((item) => typeof item === "string")
+        : [],
+    );
+
+    for (const [subName, subProperty] of Object.entries(configProperties)) {
+      rows.push({
+        name: `config.${subName}`,
+        property: subProperty,
+        required: configRequired.has(subName),
+        configSubfield: true,
+      });
+    }
+  }
+
+  return rows;
+}
+
+function fieldDescription(
+  fieldName: string,
+  questionType: QuestionType,
+): string {
+  if (fieldName === "config.count" && questionType === "repeatable-group") {
+    return "Fixed number of repetitions.";
+  }
+
+  const shortName = fieldName.includes(".")
+    ? fieldName.slice(fieldName.lastIndexOf(".") + 1)
+    : fieldName;
+
+  return (
+    FIELD_DESCRIPTIONS[fieldName] ??
+    FIELD_DESCRIPTIONS[shortName] ??
+    "Additional configuration."
   );
 }
 
@@ -386,6 +468,10 @@ function describeDetails(
   schema: JsonSchemaObject | undefined,
 ): string {
   if (!schema) return "No additional rules.";
+
+  if (fieldName === "config.questions") {
+    return "Array of nested question definitions.";
+  }
 
   const details: string[] = [];
 

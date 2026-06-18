@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Box,
   Button,
   Checkbox,
   ColorInput,
@@ -15,6 +16,7 @@ import {
   Slider,
   Stack,
   Switch,
+  Tabs,
   TagsInput,
   Text,
   Textarea,
@@ -23,27 +25,31 @@ import {
 } from "@mantine/core";
 import { useMemo, useState } from "react";
 
-import type { AnswerValue, FormAnswers, Question, QuestionId } from "./schema";
-
-interface RenderableSection {
-  title: string;
-  description?: string;
-  questions: Question[];
-}
+import type {
+  AnswerValue,
+  FormAnswers,
+  Question,
+  QuestionId,
+  RepeatableGroupQuestion,
+} from "./schema";
 
 interface FormRendererProps {
-  section: RenderableSection;
+  doc: { title: string; description?: string; questions: Question[] };
   lockedValues?: Record<QuestionId, AnswerValue>;
   initialValues?: FormAnswers;
+  readOnly?: boolean;
   submitLabel?: string;
   saveDraftLabel?: string;
-  onSubmit: (answers: FormAnswers) => void;
+  onSubmit?: (answers: FormAnswers) => void;
   onSaveDraft?: (answers: FormAnswers) => void;
 }
 
+type RepeatableColumn = Exclude<Extract<AnswerValue, unknown[]>, string[]>;
+
 function defaultFor(q: Question): AnswerValue {
-  if ("default" in q && q.default !== undefined) {
-    return q.default as AnswerValue;
+  const config = q.config;
+  if (config && "default" in config && config.default !== undefined) {
+    return config.default as AnswerValue;
   }
   switch (q.type) {
     case "boolean":
@@ -52,15 +58,82 @@ function defaultFor(q: Question): AnswerValue {
     case "checkbox-group":
     case "tags":
       return [];
+    case "repeatable-group":
+      return undefined;
     default:
       return undefined;
   }
 }
 
+export interface RepeatableGroupFieldProps {
+  question: RepeatableGroupQuestion;
+  values: FormAnswers;
+  disabled?: boolean;
+  onChange: (childId: string, index: number, value: AnswerValue) => void;
+}
+
+export function RepeatableGroupField({
+  question,
+  values,
+  disabled,
+  onChange,
+}: RepeatableGroupFieldProps) {
+  const { count, itemLabel, questions: childQuestions } = question.config;
+
+  return (
+    <Stack gap="md">
+      <Box>
+        <Text size="sm" fw={500}>
+          {question.label}
+          {question.required && (
+            <Text component="span" c="red" ml={4}>
+              *
+            </Text>
+          )}
+        </Text>
+        {question.description && (
+          <Text size="xs" c="dimmed">
+            {question.description}
+          </Text>
+        )}
+      </Box>
+
+      <Tabs defaultValue="0">
+        <Tabs.List>
+          {Array.from({ length: count }, (_, i) => (
+            <Tabs.Tab key={i} value={String(i)}>
+              {itemLabel ?? "Item"} {i + 1}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+
+        {Array.from({ length: count }, (_, i) => (
+          <Tabs.Panel key={i} value={String(i)} pt="md">
+            <Stack gap="sm">
+              {childQuestions.map((child) => (
+                <QuestionField
+                  key={child.id}
+                  question={child}
+                  value={
+                    (values[child.id] as RepeatableColumn | undefined)?.[i]
+                  }
+                  disabled={disabled}
+                  onChange={(v) => onChange(child.id, i, v)}
+                />
+              ))}
+            </Stack>
+          </Tabs.Panel>
+        ))}
+      </Tabs>
+    </Stack>
+  );
+}
+
 export function FormRenderer({
-  section,
+  doc,
   lockedValues = {},
   initialValues = {},
+  readOnly = false,
   submitLabel = "Submit",
   saveDraftLabel = "Save draft",
   onSubmit,
@@ -68,8 +141,17 @@ export function FormRenderer({
 }: FormRendererProps) {
   const initialAnswers = useMemo(() => {
     const answers: FormAnswers = {};
-    for (const q of section.questions) {
-      if (q.id in lockedValues) {
+    for (const q of doc.questions) {
+      if (q.type === "repeatable-group") {
+        for (const child of q.config.questions) {
+          const column =
+            (initialValues[child.id] as RepeatableColumn | undefined) ?? [];
+          answers[child.id] = Array.from(
+            { length: q.config.count },
+            (_, k) => column[k] ?? defaultFor(child),
+          ) as AnswerValue;
+        }
+      } else if (q.id in lockedValues) {
         answers[q.id] = lockedValues[q.id];
       } else if (initialValues[q.id] !== undefined) {
         answers[q.id] = initialValues[q.id];
@@ -78,13 +160,13 @@ export function FormRenderer({
       }
     }
     return answers;
-  }, [section, lockedValues, initialValues]);
+  }, [doc, lockedValues, initialValues]);
 
   const [answers, setAnswers] = useState<FormAnswers>(initialAnswers);
 
-  const [seen, setSeen] = useState(section);
-  if (seen !== section) {
-    setSeen(section);
+  const [seen, setSeen] = useState(doc);
+  if (seen !== doc) {
+    setSeen(doc);
     setAnswers(initialAnswers);
   }
 
@@ -94,42 +176,63 @@ export function FormRenderer({
       gap="md"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit(answers);
+        onSubmit?.(answers);
       }}
     >
       <div>
-        <Title order={3}>{section.title}</Title>
-        {section.description && (
+        <Title order={3}>{doc.title}</Title>
+        {doc.description && (
           <Text c="dimmed" size="sm">
-            {section.description}
+            {doc.description}
           </Text>
         )}
       </div>
 
-      {section.questions.map((q) => (
-        <QuestionField
-          key={q.id}
-          question={q}
-          value={answers[q.id]}
-          disabled={q.id in lockedValues}
-          onChange={(value) =>
-            setAnswers((prev) => ({ ...prev, [q.id]: value }))
-          }
-        />
-      ))}
+      {doc.questions.map((q) =>
+        q.type === "repeatable-group" ? (
+          <RepeatableGroupField
+            key={q.id}
+            question={q}
+            values={answers}
+            disabled={readOnly}
+            onChange={(childId, idx, v) =>
+              setAnswers((prev) => {
+                const existing = prev[childId];
+                const arr: RepeatableColumn = Array.isArray(existing)
+                  ? [...(existing as RepeatableColumn)]
+                  : [];
+                arr[idx] = (v ?? null) as RepeatableColumn[number];
+                return { ...prev, [childId]: arr as AnswerValue };
+              })
+            }
+          />
+        ) : (
+          <QuestionField
+            key={q.id}
+            question={q}
+            value={answers[q.id]}
+            disabled={readOnly || q.id in lockedValues}
+            onChange={(value) =>
+              setAnswers((prev) => ({ ...prev, [q.id]: value }))
+            }
+          />
+        ),
+      )}
 
-      <Group mt="sm">
-        {onSaveDraft && (
-          <Button
-            type="button"
-            variant="light"
-            onClick={() => onSaveDraft(answers)}
-          >
-            {saveDraftLabel}
-          </Button>
-        )}
-        <Button type="submit">{submitLabel}</Button>
-      </Group>
+      {!readOnly && (
+        <Group mt="sm">
+          {onSaveDraft && (
+            <Button
+              type="button"
+              variant="light"
+              onClick={() => onSaveDraft(answers)}
+            >
+              {saveDraftLabel}
+            </Button>
+          )}
+          <Button type="submit">{submitLabel}</Button>
+        </Group>
+      )}
     </Stack>
   );
 }
@@ -146,7 +249,9 @@ function asString(value: AnswerValue): string {
 }
 
 function asStringArray(value: AnswerValue): string[] {
-  return Array.isArray(value) ? value : [];
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? (value as string[])
+    : [];
 }
 
 function asNumber(value: AnswerValue, fallback: number): number {
@@ -165,11 +270,11 @@ export function QuestionField({
         <TextInput
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config?.placeholder}
           required={question.required}
           disabled={disabled}
-          minLength={question.minLength}
-          maxLength={question.maxLength}
+          minLength={question.config?.minLength}
+          maxLength={question.config?.maxLength}
           value={asString(value)}
           onChange={(event) => {
             const next = event.currentTarget.value;
@@ -183,14 +288,14 @@ export function QuestionField({
         <Textarea
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config?.placeholder}
           required={question.required}
           disabled={disabled}
-          minLength={question.minLength}
-          maxLength={question.maxLength}
+          minLength={question.config?.minLength}
+          maxLength={question.config?.maxLength}
           autosize
-          minRows={question.minRows ?? 2}
-          maxRows={question.maxRows ?? 8}
+          minRows={question.config?.minRows ?? 2}
+          maxRows={question.config?.maxRows ?? 8}
           value={asString(value)}
           onChange={(event) => {
             const next = event.currentTarget.value;
@@ -204,11 +309,11 @@ export function QuestionField({
         <PasswordInput
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config?.placeholder}
           required={question.required}
           disabled={disabled}
-          minLength={question.minLength}
-          maxLength={question.maxLength}
+          minLength={question.config?.minLength}
+          maxLength={question.config?.maxLength}
           value={asString(value)}
           onChange={(event) => {
             const next = event.currentTarget.value;
@@ -222,12 +327,12 @@ export function QuestionField({
         <NumberInput
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config?.placeholder}
           required={question.required}
           disabled={disabled}
-          min={question.min}
-          max={question.max}
-          step={question.step}
+          min={question.config?.min}
+          max={question.config?.max}
+          step={question.config?.step}
           value={typeof value === "number" ? value : ""}
           onChange={(next) => {
             if (next === "" || next === null || next === undefined) {
@@ -244,10 +349,10 @@ export function QuestionField({
         <Select
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config.placeholder}
           required={question.required}
           disabled={disabled}
-          data={question.options.map((o) => ({
+          data={question.config.options.map((o) => ({
             value: o.value,
             label: o.label,
           }))}
@@ -261,10 +366,10 @@ export function QuestionField({
         <Select
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config.placeholder}
           required={question.required}
           disabled={disabled}
-          data={question.options.map((o) => ({
+          data={question.config.options.map((o) => ({
             value: String(o.value),
             label: o.label,
           }))}
@@ -280,11 +385,11 @@ export function QuestionField({
         <MultiSelect
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config.placeholder}
           required={question.required}
           disabled={disabled}
-          maxValues={question.maxValues}
-          data={question.options.map((o) => ({
+          maxValues={question.config.maxValues}
+          data={question.config.options.map((o) => ({
             value: o.value,
             label: o.label,
           }))}
@@ -303,7 +408,7 @@ export function QuestionField({
           onChange={(next) => onChange(next || undefined)}
         >
           <Stack gap="xs" mt="xs">
-            {question.options.map((o) => (
+            {question.config.options.map((o) => (
               <Radio
                 key={o.value}
                 value={o.value}
@@ -325,7 +430,7 @@ export function QuestionField({
           onChange={(next) => onChange(next)}
         >
           <Stack gap="xs" mt="xs">
-            {question.options.map((o) => (
+            {question.config.options.map((o) => (
               <Checkbox
                 key={o.value}
                 value={o.value}
@@ -366,7 +471,7 @@ export function QuestionField({
           )}
           <SegmentedControl
             disabled={disabled}
-            data={question.options.map((o) => ({
+            data={question.config.options.map((o) => ({
               value: o.value,
               label: o.label,
             }))}
@@ -394,11 +499,14 @@ export function QuestionField({
           )}
           <Slider
             disabled={disabled}
-            min={question.min}
-            max={question.max}
-            step={question.step}
-            marks={question.marks}
-            value={asNumber(value, question.default ?? question.min)}
+            min={question.config.min}
+            max={question.config.max}
+            step={question.config.step}
+            marks={question.config.marks}
+            value={asNumber(
+              value,
+              question.config.default ?? question.config.min,
+            )}
             onChange={(next) => onChange(next)}
           />
         </Stack>
@@ -422,8 +530,8 @@ export function QuestionField({
           )}
           <Rating
             readOnly={disabled}
-            count={question.count ?? 5}
-            fractions={question.fractions}
+            count={question.config?.count ?? 5}
+            fractions={question.config?.fractions}
             value={asNumber(value, 0)}
             onChange={(next) => onChange(next === 0 ? undefined : next)}
           />
@@ -435,11 +543,11 @@ export function QuestionField({
         <ColorInput
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config?.placeholder}
           required={question.required}
           disabled={disabled}
-          swatches={question.swatches}
-          format={question.format ?? "hex"}
+          swatches={question.config?.swatches}
+          format={question.config?.format ?? "hex"}
           value={asString(value)}
           onChange={(next) => onChange(next || undefined)}
         />
@@ -453,8 +561,8 @@ export function QuestionField({
           description={question.description}
           required={question.required}
           disabled={disabled}
-          min={question.min}
-          max={question.max}
+          min={question.config?.min}
+          max={question.config?.max}
           value={asString(value)}
           onChange={(event) => {
             const next = event.currentTarget.value;
@@ -471,7 +579,7 @@ export function QuestionField({
           description={question.description}
           required={question.required}
           disabled={disabled}
-          step={question.step}
+          step={question.config?.step}
           value={asString(value)}
           onChange={(event) => {
             const next = event.currentTarget.value;
@@ -501,14 +609,17 @@ export function QuestionField({
         <TagsInput
           label={question.label}
           description={question.description}
-          placeholder={question.placeholder}
+          placeholder={question.config?.placeholder}
           required={question.required}
           disabled={disabled}
-          maxTags={question.maxTags}
-          data={question.suggestions}
+          maxTags={question.config?.maxTags}
+          data={question.config?.suggestions}
           value={asStringArray(value)}
           onChange={(next) => onChange(next)}
         />
       );
+
+    case "repeatable-group":
+      return null;
   }
 }

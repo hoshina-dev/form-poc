@@ -1,10 +1,24 @@
-import { Card, Container, Group, Stack, Text, Title } from "@mantine/core";
+import {
+  Badge,
+  Button,
+  Card,
+  Container,
+  Group,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+} from "@mantine/core";
 import { notFound } from "next/navigation";
 
 import { EmptyStatePanel, ErrorPanel } from "@/components/ErrorPanel";
 import { LinkAnchor, LinkButton } from "@/components/LinkButton";
 import { requireSession } from "@/lib/auth/dal";
-import { ExperimentManagerError } from "@/lib/experiment-manager/client";
+import {
+  ExperimentManagerError,
+  getExperimentTemplate,
+} from "@/lib/experiment-manager/client";
+import { templateDetailToLoaded } from "@/lib/experiment-manager/mappers";
 import {
   fetchSample,
   fetchSampleTemplates,
@@ -57,6 +71,24 @@ export default async function SampleTemplatesPage({
     );
   }
 
+  const validityEntries = await Promise.all(
+    templates!.map(async (template) => {
+      try {
+        const detail = await getExperimentTemplate(
+          template.sampleId,
+          template.templateId,
+        );
+        return [
+          template.templateId,
+          templateDetailToLoaded(detail).valid,
+        ] as const;
+      } catch {
+        return [template.templateId, false] as const;
+      }
+    }),
+  );
+  const validityMap = new Map(validityEntries);
+
   return (
     <Container size="xl" py="lg">
       <Stack gap="lg">
@@ -103,6 +135,7 @@ export default async function SampleTemplatesPage({
                 sampleId: template.sampleId,
                 templateId: template.templateId,
               };
+              const isValid = validityMap.get(template.templateId) ?? false;
               return (
                 <Card
                   key={template.templateId}
@@ -112,7 +145,14 @@ export default async function SampleTemplatesPage({
                 >
                   <Group justify="space-between" wrap="nowrap">
                     <div style={{ minWidth: 0 }}>
-                      <Title order={4}>{template.title}</Title>
+                      <Group gap="xs" align="center">
+                        <Title order={4}>{template.title}</Title>
+                        {!isValid && (
+                          <Badge color="gray" size="sm">
+                            Legacy format
+                          </Badge>
+                        )}
+                      </Group>
                       <Text size="xs" c="dimmed">
                         template id: {template.templateId}
                       </Text>
@@ -123,15 +163,22 @@ export default async function SampleTemplatesPage({
                       )}
                     </div>
                     <Group gap="xs" wrap="nowrap">
-                      {session.appRole === "client" && (
-                        <LinkButton
-                          href={templatePreviewPath(ref)}
-                          variant="light"
-                          size="xs"
-                        >
-                          Request analysis
-                        </LinkButton>
-                      )}
+                      {session.appRole === "client" &&
+                        (isValid ? (
+                          <LinkButton
+                            href={templatePreviewPath(ref)}
+                            variant="light"
+                            size="xs"
+                          >
+                            Request analysis
+                          </LinkButton>
+                        ) : (
+                          <Tooltip label="This template uses a legacy format and cannot be used for new requests.">
+                            <Button disabled size="xs" variant="light">
+                              Request analysis
+                            </Button>
+                          </Tooltip>
+                        ))}
                       {canManageTemplates && (
                         <>
                           <LinkButton
@@ -141,13 +188,21 @@ export default async function SampleTemplatesPage({
                           >
                             Edit
                           </LinkButton>
-                          <LinkButton
-                            href={templatePdfPath(ref)}
-                            variant="default"
-                            size="xs"
-                          >
-                            PDF
-                          </LinkButton>
+                          {isValid ? (
+                            <LinkButton
+                              href={templatePdfPath(ref)}
+                              variant="default"
+                              size="xs"
+                            >
+                              PDF
+                            </LinkButton>
+                          ) : (
+                            <Tooltip label="PDF layout is unavailable for legacy-format templates.">
+                              <Button disabled size="xs" variant="default">
+                                PDF
+                              </Button>
+                            </Tooltip>
+                          )}
                         </>
                       )}
                     </Group>

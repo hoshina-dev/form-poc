@@ -1,10 +1,11 @@
 "use server";
 
-import type { FormSchema } from "@hoshina-dev/forms";
+import type { ExperimentTemplate } from "@hoshina-dev/forms";
 import { revalidatePath } from "next/cache";
 
 import { requireSession } from "@/lib/auth/dal";
 import type { SessionPayload } from "@/lib/auth/definitions";
+import type { TemplateMeta } from "@/lib/builder";
 import {
   canResumeExperiment,
   canViewExperiment,
@@ -28,11 +29,14 @@ import {
 } from "@/lib/experiment-manager/client";
 import { getDefaultSampleId } from "@/lib/experiment-manager/config";
 import {
-  formSchemaToTemplateCreate,
-  formSchemaToTemplateUpdate,
+  injectValues,
+  type LoadedTemplate,
+  mapObjectCalcsToString,
+  templateDetailToLoaded,
   type TemplateRef,
   type TemplateSummary,
-  templateToFormSchema,
+  templateToCreate,
+  templateToUpdate,
   toTemplateSummary,
 } from "@/lib/experiment-manager/mappers";
 import {
@@ -87,43 +91,19 @@ async function loadRunStateFromExperiment(
   return deriveRunStateFromDetail(experiment, ticket);
 }
 
-function injectAnswers(
-  form: {
-    title?: string | null;
-    description?: string | null;
-    questions: unknown[];
-  },
-  answers: Record<string, unknown> | undefined,
-): WorkerForm {
-  return {
-    title: form.title,
-    description: form.description,
-    questions: (
-      form.questions as Array<{ id: string; [key: string]: unknown }>
-    ).map(
-      (q) =>
-        ({
-          ...q,
-          ...(answers && q.id in answers ? { value: answers[q.id] } : {}),
-        }) as WorkerForm["questions"][number],
-    ),
-  };
-}
-
 function buildExperimentUpdateBody(state: ExperimentRunState) {
-  const workerAnswers = state.state.answers.worker as
-    | Record<string, unknown>
-    | undefined;
-  const userAnswers = state.state.answers.user as
-    | Record<string, unknown>
-    | undefined;
+  const userAnswers = state.state.answers.user;
+  const workerAnswers = state.state.answers.worker;
   return {
-    workerForm: injectAnswers(state.template.workerForm, workerAnswers),
-    calculations: state.template.calculations,
-    template: state.template.template,
+    workerForm: injectValues(
+      state.template.labForm,
+      workerAnswers,
+    ) as WorkerForm,
+    calculations: mapObjectCalcsToString(state.template.calculations),
+    template: "",
     userForm:
-      state.template.userForm.questions.length > 0
-        ? injectAnswers(state.template.userForm, userAnswers)
+      state.template.clientForm.questions.length > 0
+        ? (injectValues(state.template.clientForm, userAnswers) as WorkerForm)
         : null,
   };
 }
@@ -240,10 +220,10 @@ export async function listTemplatesAction(): Promise<
 /** Builder / preview load — replaces storage.readForm */
 export async function getTemplateAction(
   ref: TemplateRef,
-): Promise<ActionResult<FormSchema>> {
+): Promise<ActionResult<LoadedTemplate>> {
   try {
     const template = await getExperimentTemplate(ref.sampleId, ref.templateId);
-    return { success: true, data: templateToFormSchema(template) };
+    return { success: true, data: templateDetailToLoaded(template) };
   } catch (error) {
     return actionError(error, "Failed to load experiment template");
   }
@@ -252,19 +232,19 @@ export async function getTemplateAction(
 /** Builder save (create) — replaces storage.writeForm for new templates */
 export async function createTemplateAction(
   sampleId: string,
-  form: FormSchema,
-): Promise<ActionResult<FormSchema>> {
+  payload: { meta: TemplateMeta; template: ExperimentTemplate },
+): Promise<ActionResult<LoadedTemplate>> {
   try {
     await requireSession("technician");
     const created = await createExperimentTemplate(
       sampleId,
-      formSchemaToTemplateCreate(form),
+      templateToCreate(payload.meta, payload.template),
     );
     revalidatePath("/");
     revalidatePath(`/samples/${sampleId}`);
     return {
       success: true,
-      data: templateToFormSchema(created),
+      data: templateDetailToLoaded(created),
     };
   } catch (error) {
     return actionError(error, "Failed to create experiment template");
@@ -274,15 +254,15 @@ export async function createTemplateAction(
 /** Builder save (update) — replaces storage.writeForm for existing templates */
 export async function updateTemplateAction(
   ref: TemplateRef,
-  form: FormSchema,
+  payload: { meta: TemplateMeta; template: ExperimentTemplate },
   lineageId: string,
-): Promise<ActionResult<FormSchema>> {
+): Promise<ActionResult<LoadedTemplate>> {
   try {
     await requireSession("technician");
     const updated = await updateExperimentTemplate(
       ref.sampleId,
       lineageId,
-      formSchemaToTemplateUpdate(form),
+      templateToUpdate(payload.meta, payload.template),
     );
     revalidatePath("/");
     revalidatePath(`/samples/${ref.sampleId}`);
@@ -302,7 +282,7 @@ export async function updateTemplateAction(
     }
     return {
       success: true,
-      data: templateToFormSchema(updated),
+      data: templateDetailToLoaded(updated),
     };
   } catch (error) {
     return actionError(error, "Failed to update experiment template");
@@ -439,7 +419,9 @@ export async function getExperimentAction(
   try {
     const session = await requireSession();
     const data = await getExperiment(expId);
-    if (!canViewExperiment(session, await loadRunStateFromExperiment(expId, data))) {
+    if (
+      !canViewExperiment(session, await loadRunStateFromExperiment(expId, data))
+    ) {
       return { success: false, error: "Experiment not found" };
     }
     return { success: true, data };
@@ -504,14 +486,10 @@ export async function savePdfAction(
     const pdf = await upsertPdfTemplate(sampleId, lineageId, components);
     revalidatePath(`/samples/${sampleId}`);
     if (currentTemplateId) {
-      revalidatePath(
-        `/samples/${sampleId}/templates/${currentTemplateId}/pdf`,
-      );
+      revalidatePath(`/samples/${sampleId}/templates/${currentTemplateId}/pdf`);
     }
     if (pdf.template_id !== currentTemplateId) {
-      revalidatePath(
-        `/samples/${sampleId}/templates/${pdf.template_id}/pdf`,
-      );
+      revalidatePath(`/samples/${sampleId}/templates/${pdf.template_id}/pdf`);
     }
     return { success: true, data: { templateId: pdf.template_id } };
   } catch (error) {

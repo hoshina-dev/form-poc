@@ -21,7 +21,11 @@ import {
   listExperimentTemplates,
   listSamples,
 } from "./client";
-import { templateToFormSchema, toTemplateSummary } from "./mappers";
+import {
+  extractValues,
+  templateDetailToLoaded,
+  toTemplateSummary,
+} from "./mappers";
 import {
   EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
   type ExperimentPhase,
@@ -60,26 +64,15 @@ function isExperimentVisible(
   return runState.state.phase === "worker" || runState.state.phase === "result";
 }
 
-function extractAnswersFromQuestions(
-  questions: Array<{ id: string; [key: string]: unknown }> | undefined,
-): Record<string, unknown> | undefined {
-  if (!questions?.length) return undefined;
-  const answers: Record<string, unknown> = {};
-  for (const q of questions) {
-    if (q["value"] !== undefined && q["value"] !== null) {
-      answers[q.id] = q["value"];
-    }
-  }
-  return Object.keys(answers).length > 0 ? answers : undefined;
-}
-
-type QuestionSnapshot = { id: string; [key: string]: unknown };
+type QuestionSnapshot = { id: string; value?: unknown; required?: boolean };
 
 function questionHasValue(q: QuestionSnapshot): boolean {
   return q.value !== undefined && q.value !== null;
 }
 
-function isClientSubmissionComplete(ticket: Ticket | null | undefined): boolean {
+function isClientSubmissionComplete(
+  ticket: Ticket | null | undefined,
+): boolean {
   if (!ticket?.status) return false;
   return ticketStatusIndex(ticket.status) >= ticketStatusIndex("PENDING");
 }
@@ -138,31 +131,31 @@ export function deriveRunStateFromDetail(
       calculations: detail.calculations,
       template: detail.template,
     };
-    const formSchema = templateToFormSchema(templateLike);
+    const loaded = templateDetailToLoaded(templateLike);
+    if (!loaded.valid) return null;
 
-    const userAnswers = extractAnswersFromQuestions(
-      detail.userForm?.questions as
-        | Array<{ id: string; [key: string]: unknown }>
-        | undefined,
+    const userAnswers = extractValues(
+      detail.userForm?.questions as QuestionSnapshot[] | undefined,
     );
-    const workerAnswers = extractAnswersFromQuestions(
-      detail.workerForm.questions as Array<{
-        id: string;
-        [key: string]: unknown;
-      }>,
+    const workerAnswers = extractValues(
+      detail.workerForm.questions as QuestionSnapshot[] | undefined,
     );
 
     const phase = derivePhase(detail, ticket);
 
     return {
       schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
-      template: formSchema,
+      template: loaded.template,
       technicianLogs: [],
       state: {
         phase,
         answers: {
-          ...(userAnswers ? { user: userAnswers as FormAnswers } : {}),
-          ...(workerAnswers ? { worker: workerAnswers as FormAnswers } : {}),
+          ...(Object.keys(userAnswers).length > 0
+            ? { user: userAnswers as FormAnswers }
+            : {}),
+          ...(Object.keys(workerAnswers).length > 0
+            ? { worker: workerAnswers as FormAnswers }
+            : {}),
         },
       },
     };
@@ -189,7 +182,7 @@ export async function fetchSampleTemplates(sampleId: string) {
 
 export async function fetchTemplateForm(sampleId: string, templateId: string) {
   const template = await getExperimentTemplate(sampleId, templateId);
-  return templateToFormSchema(template);
+  return templateDetailToLoaded(template);
 }
 
 async function buildUserNameLookup(): Promise<Map<string, string>> {
@@ -305,13 +298,14 @@ export async function fetchExperimentRun(expId: string) {
     getSample(experiment.sample_id),
     getExperimentTemplate(experiment.sample_id, experiment.template_id),
   ]);
+  const loaded = templateDetailToLoaded(template);
 
   return {
     experiment,
     sample,
     template,
     ticket,
-    form: runState?.template ?? templateToFormSchema(template),
+    form: runState?.template ?? loaded.template,
     runState,
     stateKind: (runState ? "current" : "missing") as ExperimentStateKind,
   };

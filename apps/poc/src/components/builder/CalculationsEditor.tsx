@@ -27,8 +27,8 @@ export function CalculationsEditor({ form }: CalculationsEditorProps) {
         <div>
           <Title order={3}>Calculations</Title>
           <Text size="sm" c="dimmed">
-            Each calculation is a JavaScript expression. Identifiers refer to
-            user/worker question IDs and earlier calculation names.
+            Each calculation is a Python formula string evaluated by the
+            backend; results are display-only here.
           </Text>
         </div>
         {calcs.length === 0 && (
@@ -45,10 +45,10 @@ export function CalculationsEditor({ form }: CalculationsEditorProps) {
               {...form.getInputProps(`calculations.${i}.name`)}
             />
             <TextInput
-              label={i === 0 ? "Expression" : undefined}
-              placeholder="shots * shot_price + tip"
+              label={i === 0 ? "Formula" : undefined}
+              placeholder="mean(reading_a)"
               style={{ flex: 2 }}
-              {...form.getInputProps(`calculations.${i}.expression`)}
+              {...form.getInputProps(`calculations.${i}.formula`)}
             />
             <ActionIcon
               color="red"
@@ -65,7 +65,7 @@ export function CalculationsEditor({ form }: CalculationsEditorProps) {
             size="xs"
             variant="light"
             onClick={() =>
-              form.insertListItem("calculations", { name: "", expression: "" })
+              form.insertListItem("calculations", { name: "", formula: "" })
             }
           >
             Add calculation

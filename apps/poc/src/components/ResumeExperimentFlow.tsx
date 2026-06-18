@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormSchema } from "@hoshina-dev/forms";
+import type { ExperimentTemplate } from "@hoshina-dev/forms";
 import { useRouter } from "next/navigation";
 
 import { FormFlow } from "@/components/FormFlow";
@@ -10,7 +10,9 @@ import type { ExperimentRunState } from "@/lib/experiment-manager/state";
 import { templatePreviewPath } from "@/lib/routes";
 
 interface ResumeExperimentFlowProps {
-  form: FormSchema;
+  template: ExperimentTemplate;
+  title: string;
+  description?: string;
   experimentRef: TemplateRef;
   expId: string;
   runState: ExperimentRunState;
@@ -18,7 +20,9 @@ interface ResumeExperimentFlowProps {
 }
 
 export function ResumeExperimentFlow({
-  form,
+  template,
+  title,
+  description,
   experimentRef,
   expId,
   runState,
@@ -28,7 +32,9 @@ export function ResumeExperimentFlow({
 
   return (
     <FormFlow
-      form={form}
+      template={template}
+      title={title}
+      description={description}
       viewer={viewer}
       experimentRef={experimentRef}
       resume={{ expId, runState }}

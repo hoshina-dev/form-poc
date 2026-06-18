@@ -66,7 +66,7 @@ export default async function ExperimentResumePage({
         <Group justify="space-between" align="center">
           <div>
             <Text size="sm" c="dimmed">
-              {sample.name} · {form.title}
+              {sample.name} · {experiment.title}
             </Text>
             <Text size="xs" c="dimmed">
               resuming experiment {expId}
@@ -86,7 +86,9 @@ export default async function ExperimentResumePage({
         </Group>
         <Paper withBorder p="lg" radius="md">
           <ResumeExperimentFlow
-            form={form}
+            template={form}
+            title={experiment.title}
+            description={form.labForm?.description ?? undefined}
             experimentRef={templateRef}
             expId={expId}
             runState={runState}

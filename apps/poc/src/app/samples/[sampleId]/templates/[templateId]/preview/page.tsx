@@ -30,11 +30,11 @@ export default async function TemplatePreviewPage({
   const session = await requireSession("client");
 
   let sample;
-  let form;
+  let loaded;
   let error: string | null = null;
 
   try {
-    [sample, form] = await Promise.all([
+    [sample, loaded] = await Promise.all([
       fetchSample(sampleId),
       fetchTemplateForm(sampleId, templateId),
     ]);
@@ -53,13 +53,24 @@ export default async function TemplatePreviewPage({
     );
   }
 
+  if (!loaded!.valid) {
+    return (
+      <Container size="xl" py="lg">
+        <ErrorPanel
+          title="Legacy template"
+          message="This template uses a legacy format and cannot be filled."
+        />
+      </Container>
+    );
+  }
+
   return (
     <Container size="xl" py="lg">
       <Stack gap="md">
         <Group justify="space-between" align="center">
           <div>
             <Text size="sm" c="dimmed">
-              {sample!.name} · {form!.title}
+              {sample!.name} · {loaded!.meta.title}
             </Text>
             <Text size="xs" c="dimmed">
               template {templateId}
@@ -72,7 +83,9 @@ export default async function TemplatePreviewPage({
         <Paper withBorder p="lg" radius="md">
           <FormFlow
             key={templateId}
-            form={form!}
+            template={loaded!.template}
+            title={loaded!.meta.title}
+            description={loaded!.meta.description}
             viewer={toSessionUser(session)}
             experimentRef={ref}
           />

@@ -14,6 +14,7 @@ import {
   type QuestionType,
   RadioQuestion,
   RatingQuestion,
+  RepeatableGroupQuestion,
   SegmentedQuestion,
   SliderQuestion,
   StringQuestion,
@@ -43,9 +44,11 @@ export const GALLERY: GalleryEntry[] = [
       type: "string",
       label: "Your name",
       description: "We'll use this on your name tag.",
-      placeholder: "e.g. Hoshina",
       required: true,
-      maxLength: 60,
+      config: {
+        placeholder: "e.g. Hoshina",
+        maxLength: 60,
+      },
     },
   },
   {
@@ -59,10 +62,12 @@ export const GALLERY: GalleryEntry[] = [
       type: "textarea",
       label: "Short bio",
       description: "A couple of sentences about you.",
-      placeholder: "I'm a ...",
-      minRows: 3,
-      maxRows: 8,
-      maxLength: 500,
+      config: {
+        placeholder: "I'm a ...",
+        minRows: 3,
+        maxRows: 8,
+        maxLength: 500,
+      },
     },
   },
   {
@@ -74,8 +79,10 @@ export const GALLERY: GalleryEntry[] = [
       id: "invite_code",
       type: "password",
       label: "Invite code",
-      placeholder: "•••••••",
-      minLength: 4,
+      config: {
+        placeholder: "•••••••",
+        minLength: 4,
+      },
     },
   },
   {
@@ -88,10 +95,12 @@ export const GALLERY: GalleryEntry[] = [
       id: "age",
       type: "number",
       label: "Age",
-      min: 0,
-      max: 120,
-      step: 1,
-      default: 25,
+      config: {
+        min: 0,
+        max: 120,
+        step: 1,
+        default: 25,
+      },
     },
   },
   {
@@ -105,14 +114,16 @@ export const GALLERY: GalleryEntry[] = [
       type: "select-string",
       label: "Country",
       required: true,
-      placeholder: "Pick one",
-      default: "JP",
-      options: [
-        { label: "Japan", value: "JP" },
-        { label: "Thailand", value: "TH" },
-        { label: "United States", value: "US" },
-        { label: "Germany", value: "DE" },
-      ],
+      config: {
+        placeholder: "Pick one",
+        default: "JP",
+        options: [
+          { label: "Japan", value: "JP" },
+          { label: "Thailand", value: "TH" },
+          { label: "United States", value: "US" },
+          { label: "Germany", value: "DE" },
+        ],
+      },
     },
   },
   {
@@ -125,13 +136,15 @@ export const GALLERY: GalleryEntry[] = [
       id: "tshirt_size",
       type: "select-number",
       label: "T-shirt size (chest cm)",
-      default: 100,
-      options: [
-        { label: "S (90cm)", value: 90 },
-        { label: "M (100cm)", value: 100 },
-        { label: "L (110cm)", value: 110 },
-        { label: "XL (120cm)", value: 120 },
-      ],
+      config: {
+        default: 100,
+        options: [
+          { label: "S (90cm)", value: 90 },
+          { label: "M (100cm)", value: 100 },
+          { label: "L (110cm)", value: 110 },
+          { label: "XL (120cm)", value: 120 },
+        ],
+      },
     },
   },
   {
@@ -144,17 +157,19 @@ export const GALLERY: GalleryEntry[] = [
       id: "languages",
       type: "multi-select",
       label: "Languages you speak",
-      placeholder: "Pick any",
-      maxValues: 5,
-      default: ["en"],
-      options: [
-        { label: "English", value: "en" },
-        { label: "Japanese", value: "ja" },
-        { label: "Thai", value: "th" },
-        { label: "German", value: "de" },
-        { label: "French", value: "fr" },
-        { label: "Spanish", value: "es" },
-      ],
+      config: {
+        placeholder: "Pick any",
+        maxValues: 5,
+        default: ["en"],
+        options: [
+          { label: "English", value: "en" },
+          { label: "Japanese", value: "ja" },
+          { label: "Thai", value: "th" },
+          { label: "German", value: "de" },
+          { label: "French", value: "fr" },
+          { label: "Spanish", value: "es" },
+        ],
+      },
     },
   },
   {
@@ -168,12 +183,14 @@ export const GALLERY: GalleryEntry[] = [
       type: "radio",
       label: "Preferred contact",
       required: true,
-      default: "email",
-      options: [
-        { label: "Email", value: "email" },
-        { label: "Phone", value: "phone" },
-        { label: "Carrier pigeon", value: "pigeon" },
-      ],
+      config: {
+        default: "email",
+        options: [
+          { label: "Email", value: "email" },
+          { label: "Phone", value: "phone" },
+          { label: "Carrier pigeon", value: "pigeon" },
+        ],
+      },
     },
   },
   {
@@ -186,14 +203,16 @@ export const GALLERY: GalleryEntry[] = [
       id: "interests",
       type: "checkbox-group",
       label: "Interests",
-      default: ["coffee", "reading"],
-      options: [
-        { label: "Coffee", value: "coffee" },
-        { label: "Cooking", value: "cooking" },
-        { label: "Cycling", value: "cycling" },
-        { label: "Reading", value: "reading" },
-        { label: "Gaming", value: "gaming" },
-      ],
+      config: {
+        default: ["coffee", "reading"],
+        options: [
+          { label: "Coffee", value: "coffee" },
+          { label: "Cooking", value: "cooking" },
+          { label: "Cycling", value: "cycling" },
+          { label: "Reading", value: "reading" },
+          { label: "Gaming", value: "gaming" },
+        ],
+      },
     },
   },
   {
@@ -206,7 +225,9 @@ export const GALLERY: GalleryEntry[] = [
       type: "boolean",
       label: "Subscribe to newsletter",
       description: "We send one digest per week.",
-      default: true,
+      config: {
+        default: true,
+      },
     },
   },
   {
@@ -219,12 +240,14 @@ export const GALLERY: GalleryEntry[] = [
       id: "plan",
       type: "segmented",
       label: "Plan",
-      default: "pro",
-      options: [
-        { label: "Free", value: "free" },
-        { label: "Pro", value: "pro" },
-        { label: "Team", value: "team" },
-      ],
+      config: {
+        default: "pro",
+        options: [
+          { label: "Free", value: "free" },
+          { label: "Pro", value: "pro" },
+          { label: "Team", value: "team" },
+        ],
+      },
     },
   },
   {
@@ -237,15 +260,17 @@ export const GALLERY: GalleryEntry[] = [
       id: "satisfaction",
       type: "slider",
       label: "Overall satisfaction",
-      min: 0,
-      max: 10,
-      step: 1,
-      default: 7,
-      marks: [
-        { value: 0, label: "0" },
-        { value: 5, label: "5" },
-        { value: 10, label: "10" },
-      ],
+      config: {
+        min: 0,
+        max: 10,
+        step: 1,
+        default: 7,
+        marks: [
+          { value: 0, label: "0" },
+          { value: 5, label: "5" },
+          { value: 10, label: "10" },
+        ],
+      },
     },
   },
   {
@@ -258,9 +283,11 @@ export const GALLERY: GalleryEntry[] = [
       id: "quality",
       type: "rating",
       label: "Rate the product",
-      count: 5,
-      fractions: 2,
-      default: 4,
+      config: {
+        count: 5,
+        fractions: 2,
+        default: 4,
+      },
     },
   },
   {
@@ -272,17 +299,19 @@ export const GALLERY: GalleryEntry[] = [
       id: "fav_color",
       type: "color",
       label: "Favourite color",
-      default: "#7048e8",
-      swatches: [
-        "#fa5252",
-        "#fd7e14",
-        "#fab005",
-        "#40c057",
-        "#228be6",
-        "#7048e8",
-        "#000000",
-        "#ffffff",
-      ],
+      config: {
+        default: "#7048e8",
+        swatches: [
+          "#fa5252",
+          "#fd7e14",
+          "#fab005",
+          "#40c057",
+          "#228be6",
+          "#7048e8",
+          "#000000",
+          "#ffffff",
+        ],
+      },
     },
   },
   {
@@ -294,8 +323,10 @@ export const GALLERY: GalleryEntry[] = [
       id: "birthday",
       type: "date",
       label: "Birthday",
-      min: "1900-01-01",
-      max: "2025-12-31",
+      config: {
+        min: "1900-01-01",
+        max: "2025-12-31",
+      },
     },
   },
   {
@@ -307,7 +338,9 @@ export const GALLERY: GalleryEntry[] = [
       id: "wake_time",
       type: "time",
       label: "Usual wake time",
-      default: "07:30",
+      config: {
+        default: "07:30",
+      },
     },
   },
   {
@@ -320,7 +353,9 @@ export const GALLERY: GalleryEntry[] = [
       id: "event_at",
       type: "datetime",
       label: "Event start",
-      default: "2026-06-01T19:00",
+      config: {
+        default: "2026-06-01T19:00",
+      },
     },
   },
   {
@@ -333,9 +368,54 @@ export const GALLERY: GalleryEntry[] = [
       id: "skills",
       type: "tags",
       label: "Skills",
-      placeholder: "Type and press Enter",
-      maxTags: 8,
-      default: ["typescript", "react"],
+      config: {
+        placeholder: "Type and press Enter",
+        maxTags: 8,
+        default: ["typescript", "react"],
+      },
+    },
+  },
+  {
+    type: "repeatable-group",
+    label: "Repeatable group",
+    description:
+      "A fixed-count repeating section (e.g. 'measure the sample 8 times'). Child questions repeat exactly `count` times; answers are stored columnar (one array per child question id).",
+    zodSchema: RepeatableGroupQuestion,
+    example: {
+      id: "measurement",
+      type: "repeatable-group",
+      label: "Sample measurements",
+      description:
+        "Each repetition captures one reading from Instrument A and one from Instrument B.",
+      required: true,
+      config: {
+        count: 3,
+        itemLabel: "Measurement",
+        questions: [
+          {
+            id: "reading_a",
+            type: "number",
+            label: "Instrument A reading (mg)",
+            required: true,
+            config: {
+              min: 0,
+              step: 0.01,
+              placeholder: "Reading A",
+            },
+          },
+          {
+            id: "reading_b",
+            type: "number",
+            label: "Instrument B reading (mg)",
+            required: true,
+            config: {
+              min: 0,
+              step: 0.01,
+              placeholder: "Reading B",
+            },
+          },
+        ],
+      },
     },
   },
 ];

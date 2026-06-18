@@ -3,7 +3,10 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { FormSchema } from "@hoshina-dev/forms";
+import {
+  ExperimentTemplate,
+  type ExperimentTemplate as ExperimentTemplateType,
+} from "@hoshina-dev/forms";
 
 const VALID_ID = /^[A-Za-z0-9_-]+$/;
 
@@ -42,12 +45,13 @@ export async function listForms(): Promise<FormSummary[]> {
   for (const entry of entries) {
     if (!entry.endsWith(".json")) continue;
     try {
+      const id = entry.slice(0, -".json".length);
       const raw = await fs.readFile(path.join(d, entry), "utf8");
-      const parsed = FormSchema.parse(JSON.parse(raw));
+      const parsed = ExperimentTemplate.parse(JSON.parse(raw));
       summaries.push({
-        id: parsed.id,
-        title: parsed.title,
-        description: parsed.description,
+        id,
+        title: parsed.clientForm.title,
+        description: parsed.clientForm.description,
       });
     } catch {
       // Skip unparseable files — they shouldn't exist, but don't crash the list.
@@ -58,11 +62,13 @@ export async function listForms(): Promise<FormSummary[]> {
   return summaries;
 }
 
-export async function readForm(id: string): Promise<FormSchema | null> {
+export async function readForm(
+  id: string,
+): Promise<ExperimentTemplateType | null> {
   await ensureDir();
   try {
     const raw = await fs.readFile(filePath(id), "utf8");
-    return FormSchema.parse(JSON.parse(raw));
+    return ExperimentTemplate.parse(JSON.parse(raw));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw e;
@@ -79,11 +85,15 @@ export async function formExists(id: string): Promise<boolean> {
   }
 }
 
-export async function writeForm(form: FormSchema): Promise<void> {
+export async function writeForm(
+  id: string,
+  form: ExperimentTemplateType,
+): Promise<void> {
   await ensureDir();
-  const validated = FormSchema.parse(form);
+  assertValidId(id);
+  const validated = ExperimentTemplate.parse(form);
   await fs.writeFile(
-    filePath(validated.id),
+    filePath(id),
     JSON.stringify(validated, null, 2) + "\n",
     "utf8",
   );

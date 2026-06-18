@@ -11,34 +11,25 @@ import {
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 
-import {
-  type FormDraft,
-  makeQuestion,
-  makeWorkerQuestion,
-} from "@/lib/builder";
+import { type FormDraft, makeQuestion } from "@/lib/builder";
 
 import { QuestionEditor } from "./QuestionEditor";
 
 interface SectionEditorProps {
   form: UseFormReturnType<FormDraft>;
-  path: "userForm" | "workerForm";
-  isWorker: boolean;
-  userQuestionIds?: string[];
+  path: "clientForm" | "labForm";
 }
 
-export function SectionEditor({
-  form,
-  path,
-  isWorker,
-  userQuestionIds,
-}: SectionEditorProps) {
+export function SectionEditor({ form, path }: SectionEditorProps) {
   const section = form.values[path];
   const questionsPath = `${path}.questions`;
 
   return (
     <Paper withBorder p="md" radius="md">
       <Stack gap="md">
-        <Title order={3}>{isWorker ? "Worker form" : "User form"}</Title>
+        <Title order={3}>
+          {path === "clientForm" ? "Client form" : "Lab form"}
+        </Title>
         <TextInput
           label="Section title"
           required
@@ -61,8 +52,6 @@ export function SectionEditor({
               form={form}
               path={`${questionsPath}.${i}`}
               question={question}
-              isWorker={isWorker}
-              userQuestionIds={userQuestionIds}
               index={i}
               total={section.questions.length}
               onMoveUp={() =>
@@ -80,12 +69,7 @@ export function SectionEditor({
           <Button
             variant="light"
             onClick={() =>
-              form.insertListItem(
-                questionsPath,
-                isWorker
-                  ? makeWorkerQuestion("string")
-                  : makeQuestion("string"),
-              )
+              form.insertListItem(questionsPath, makeQuestion("string"))
             }
           >
             Add question
