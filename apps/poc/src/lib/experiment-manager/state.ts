@@ -162,16 +162,15 @@ export function isResumablePhase(
 
 export function phaseToStage(
   phase: ExperimentPhase | null | undefined,
-  skipUser: boolean,
 ): 0 | 1 | 2 {
   switch (phase) {
     case "user":
-      return skipUser ? 1 : 0;
+      return 0;
     case "worker":
       return 1;
     case "result":
       return 2;
     default:
-      return skipUser ? 1 : 0;
+      return 0;
   }
 }

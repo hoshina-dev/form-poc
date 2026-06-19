@@ -86,7 +86,14 @@ function derivePhase(
     return value !== undefined && value !== null;
   }
 
-  if (userQuestions.length > 0) {
+  if (userQuestions.length === 0) {
+    if (ticket) {
+      if (!isClientSubmissionComplete(ticket)) return "user";
+    } else {
+      const workerHasValues = workerQuestions.some((q) => questionHasAnswer(q));
+      if (!workerHasValues) return "user";
+    }
+  } else {
     const unansweredRequiredUser = userQuestions.some(
       (q) => q.required && !questionHasAnswer(q),
     );

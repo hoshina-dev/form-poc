@@ -60,10 +60,6 @@ interface FormFlowProps {
   onRestart?: () => void;
 }
 
-function hasUserPhase(template: ExperimentTemplate): boolean {
-  return template.clientForm.questions.length > 0;
-}
-
 export function FormFlow({ onRestart, ...props }: FormFlowProps) {
   const [session, setSession] = useState(0);
   const sessionKey = props.resume
@@ -91,13 +87,8 @@ function FormFlowSession({
   onRestart,
 }: FormFlowSessionProps) {
   const router = useRouter();
-  const skipUser = !hasUserPhase(template);
   const [stage, setStage] = useState<Stage>(() =>
-    resume
-      ? phaseToStage(resume.runState.state.phase, skipUser)
-      : skipUser
-        ? 1
-        : 0,
+    resume ? phaseToStage(resume.runState.state.phase) : 0,
   );
   const [userAnswers, setUserAnswers] = useState<FormAnswers>(
     () => resume?.runState.state.answers.user ?? {},
@@ -169,7 +160,7 @@ function FormFlowSession({
             template,
             createdBy,
             technicianLogs,
-            phase: skipUser ? "worker" : "user",
+            phase: "user",
           }),
         );
       } else {
@@ -181,7 +172,6 @@ function FormFlowSession({
     sampleId,
     templateId,
     expId,
-    skipUser,
     persistState,
     resume?.expId,
     template,
@@ -221,12 +211,12 @@ function FormFlowSession({
       )}
 
       <Stepper active={stage} allowNextStepsSelect={false}>
-        {!skipUser && <Stepper.Step label="Client" description={clientLabel} />}
+        <Stepper.Step label="Client" description={clientLabel} />
         <Stepper.Step label="Technician" description={labLabel} />
         <Stepper.Step label="Result" description="Computed output" />
       </Stepper>
 
-      {stage === 0 && !skipUser && isClient && (
+      {stage === 0 && isClient && (
         <FormRenderer
           doc={template.clientForm}
           initialValues={userAnswers}
