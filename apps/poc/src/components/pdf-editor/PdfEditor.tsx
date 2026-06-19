@@ -228,8 +228,9 @@ export function PdfEditor({
     if (!result.success) return;
     const exp = result.data;
     setEditorContext({
-      ...extractValues(exp.workerForm?.questions),
-      ...extractValues(exp.userForm?.questions),
+      ...(exp.values ?? {}),
+      ...extractValues(exp.clientForm?.questions ?? exp.userForm?.questions),
+      ...extractValues(exp.labForm?.questions ?? exp.workerForm?.questions),
     });
   }, []);
 

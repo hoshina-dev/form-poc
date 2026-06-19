@@ -106,15 +106,15 @@ export default async function PdfEditorPage({ params }: PdfEditorPageProps) {
   // Build variable groups from template
   const sourceVars = [
     ...expandSourceVars(
-      (template.userForm?.questions ?? []) as SnapshotQuestion[],
+      (template.clientForm?.questions ?? template.userForm?.questions ?? []) as SnapshotQuestion[],
       "client",
     ),
     ...expandSourceVars(
-      template.workerForm.questions as SnapshotQuestion[],
+      (template.labForm?.questions ?? template.workerForm?.questions ?? []) as SnapshotQuestion[],
       "lab",
     ),
   ];
-  const calcVars = Object.keys(template.calculations).map((key) => ({
+  const calcVars = Object.keys(template.calculations ?? {}).map((key) => ({
     id: key,
     label: key,
   }));
@@ -130,8 +130,8 @@ export default async function PdfEditorPage({ params }: PdfEditorPageProps) {
   // Default values for preview (from question.config.default)
   const questionDefaults: Record<string, unknown> = {};
   for (const q of [
-    ...(template.userForm?.questions ?? []),
-    ...template.workerForm.questions,
+    ...(template.clientForm?.questions ?? template.userForm?.questions ?? []),
+    ...(template.labForm?.questions ?? template.workerForm?.questions ?? []),
   ] as SnapshotQuestion[]) {
     if (q.type === "repeatable-group") continue;
     const def = q.config?.default;

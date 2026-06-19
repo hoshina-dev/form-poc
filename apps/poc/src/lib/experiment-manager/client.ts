@@ -54,43 +54,72 @@ export async function emFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export type SampleSummary =
   ExperimentManager.Components["schemas"]["SampleSummary"];
 
-/**
- * The experiment manager serialises the form snapshot (userForm / workerForm /
- * calculations / template) as free-form additional properties, so the
- * generated `ExperimentTemplateDetail` / `ExperimentDetail` schemas type them
- * as `unknown`. These bridging types re-expose the snapshot shape the POC
- * relies on without touching the generated codegen.
- */
-export interface FormSnapshotSection {
+export interface FormDocSnapshot {
   title?: string | null;
   description?: string | null;
   questions: Array<{ id: string; [key: string]: unknown }>;
 }
 
-interface ExperimentSnapshotFields {
-  name?: string;
-  description?: string | null;
-  userForm?: FormSnapshotSection | null;
-  workerForm: FormSnapshotSection;
-  calculations: Record<string, string>;
-  template: string;
+export interface CalculationSnapshot {
+  formula: string;
+  result?: string | number | boolean | null | unknown[];
+}
+
+/**
+ * Fields merged from experiment template / experiment state JSONB.
+ * Supports the current clientForm/labForm schema and legacy userForm/workerForm.
+ */
+export interface TemplateSnapshotFields {
+  clientForm?: FormDocSnapshot | null;
+  labForm?: FormDocSnapshot | null;
+  calculations?: Record<string, CalculationSnapshot | string>;
+  values?: Record<string, unknown>;
+  /** @deprecated Legacy wire format */
+  userForm?: FormDocSnapshot | null;
+  /** @deprecated Legacy wire format */
+  workerForm?: FormDocSnapshot | null;
+  /** @deprecated Removed from template JSONB */
+  template?: string;
 }
 
 export type ExperimentTemplateDetail =
   ExperimentManager.Components["schemas"]["ExperimentTemplateDetail"] &
-    ExperimentSnapshotFields;
+    TemplateSnapshotFields;
+
 export type ExperimentTemplateSummary =
   ExperimentManager.Components["schemas"]["ExperimentTemplateSummary"];
-export type ExperimentTemplateCreate =
-  ExperimentManager.Components["schemas"]["ExperimentTemplateCreate"];
-export type ExperimentTemplateUpdate =
-  ExperimentManager.Components["schemas"]["ExperimentTemplateUpdate"];
+
+export interface ExperimentTemplateCreate {
+  title: string;
+  description?: string | null;
+  clientForm: FormDocSnapshot;
+  labForm: FormDocSnapshot;
+  calculations: Record<string, CalculationSnapshot>;
+}
+
+export type ExperimentTemplateUpdate = ExperimentTemplateCreate;
+
 export type ExperimentDetail =
   ExperimentManager.Components["schemas"]["ExperimentDetail"] &
-    ExperimentSnapshotFields & { title: string };
+    TemplateSnapshotFields & {
+      id: string;
+      sample_id: string;
+      template_id: string;
+      name?: string;
+      description?: string | null;
+      /** @deprecated use name */
+      title?: string;
+    };
+
+export interface ExperimentUpdate {
+  clientForm: FormDocSnapshot;
+  labForm: FormDocSnapshot;
+  calculations: Record<string, CalculationSnapshot>;
+  values: Record<string, unknown>;
+}
+
 export type ExperimentSummary =
   ExperimentManager.Components["schemas"]["ExperimentSummary"];
-export type WorkerForm = ExperimentManager.Components["schemas"]["WorkerForm"];
 
 export async function listSamples() {
   return emFetch<{ samples: SampleSummary[] }>("/api/samples");
@@ -159,10 +188,7 @@ export async function createExperiment(
   });
 }
 
-export async function updateExperiment(
-  expId: string,
-  body: ExperimentManager.Components["schemas"]["ExperimentUpdate"],
-) {
+export async function updateExperiment(expId: string, body: ExperimentUpdate) {
   return emFetch<ExperimentDetail>(`/api/experiments/${expId}`, {
     method: "PUT",
     body: JSON.stringify(body),
@@ -175,6 +201,12 @@ export async function getExperiment(expId: string) {
 
 export async function deleteExperiment(expId: string) {
   return emFetch<void>(`/api/experiments/${expId}`, { method: "DELETE" });
+}
+
+export async function calculateExperiment(expId: string) {
+  return emFetch<ExperimentDetail>(`/api/experiments/${expId}/calculate`, {
+    method: "POST",
+  });
 }
 
 export interface PdfTemplateDetail {

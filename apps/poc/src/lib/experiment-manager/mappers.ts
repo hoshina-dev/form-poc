@@ -2,14 +2,20 @@ import type {
   AnswerValue,
   ExperimentTemplate,
   FormAnswers,
+  FormDoc,
+  Question,
 } from "@hoshina-dev/forms";
 import { ExperimentTemplate as ExperimentTemplateSchema } from "@hoshina-dev/forms";
 
 import type {
+  CalculationSnapshot,
+  ExperimentDetail,
   ExperimentTemplateCreate,
   ExperimentTemplateDetail,
   ExperimentTemplateSummary,
   ExperimentTemplateUpdate,
+  ExperimentUpdate,
+  FormDocSnapshot,
 } from "./client";
 
 /** Composite key when listing templates across samples. */
@@ -34,35 +40,88 @@ export interface LoadedTemplate {
   valid: boolean;
 }
 
-function mapStringCalcsToObject(
-  calcs: Record<string, string> | undefined,
-): Record<string, { formula: string }> {
+type QuestionSnapshot = {
+  id: string;
+  type?: string;
+  config?: { questions?: Array<{ id: string }> };
+  value?: unknown;
+  [key: string]: unknown;
+};
+
+type CalculationWire = CalculationSnapshot | string;
+
+function readFormDoc(
+  detail: {
+    clientForm?: FormDocSnapshot | null;
+    labForm?: FormDocSnapshot | null;
+    userForm?: FormDocSnapshot | null;
+    workerForm?: FormDocSnapshot | null;
+  },
+  kind: "client" | "lab",
+): FormDocSnapshot {
+  if (kind === "client") {
+    return detail.clientForm ?? detail.userForm ?? { title: "", questions: [] };
+  }
+  return detail.labForm ?? detail.workerForm ?? { title: "", questions: [] };
+}
+
+export function normalizeCalculations(
+  calcs: Record<string, CalculationWire> | undefined,
+): ExperimentTemplate["calculations"] {
   if (!calcs) return {};
   return Object.fromEntries(
-    Object.entries(calcs).map(([name, formula]) => [name, { formula }]),
+    Object.entries(calcs).map(([name, entry]) => {
+      if (typeof entry === "string") {
+        return [name, { formula: entry }];
+      }
+      if (
+        entry &&
+        typeof entry === "object" &&
+        typeof entry.formula === "string"
+      ) {
+        return [
+          name,
+          entry.result !== undefined
+            ? { formula: entry.formula, result: entry.result as never }
+            : { formula: entry.formula },
+        ];
+      }
+      return [name, { formula: "" }];
+    }),
   );
 }
 
+export function mapCalculationsToApi(
+  calcs: ExperimentTemplate["calculations"],
+): Record<string, CalculationSnapshot> {
+  return Object.fromEntries(
+    Object.entries(calcs).map(([name, { formula, result }]) => [
+      name,
+      result !== undefined ? { formula, result } : { formula },
+    ]),
+  );
+}
+
+/** @deprecated Use mapCalculationsToApi */
 export function mapObjectCalcsToString(
   calcs: ExperimentTemplate["calculations"],
-): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(calcs).map(([name, { formula }]) => [name, formula]),
-  );
+): Record<string, CalculationSnapshot> {
+  return mapCalculationsToApi(calcs);
 }
 
 export function templateDetailToLoaded(
   detail: ExperimentTemplateDetail,
 ): LoadedTemplate {
   const candidate = {
-    clientForm: detail.userForm ?? { title: "", questions: [] },
-    labForm: detail.workerForm ?? { title: "", questions: [] },
-    calculations: mapStringCalcsToObject(detail.calculations),
+    clientForm: readFormDoc(detail, "client"),
+    labForm: readFormDoc(detail, "lab"),
+    calculations: normalizeCalculations(detail.calculations),
   };
   const parsed = ExperimentTemplateSchema.safeParse(candidate);
   const meta = {
     title: detail.name,
-    description: detail.description ?? undefined,
+    description:
+      typeof detail.description === "string" ? detail.description : undefined,
   };
   return {
     id: detail.id,
@@ -80,13 +139,9 @@ export function templateToCreate(
   return {
     title: meta.title,
     description: meta.description ?? null,
-    userForm:
-      template.clientForm.questions.length > 0
-        ? (template.clientForm as ExperimentTemplateCreate["userForm"])
-        : null,
-    workerForm: template.labForm as ExperimentTemplateCreate["workerForm"],
-    calculations: mapObjectCalcsToString(template.calculations),
-    template: "",
+    clientForm: template.clientForm as FormDocSnapshot,
+    labForm: template.labForm as FormDocSnapshot,
+    calculations: mapCalculationsToApi(template.calculations),
   };
 }
 
@@ -97,13 +152,37 @@ export function templateToUpdate(
   return templateToCreate(meta, template);
 }
 
-type QuestionSnapshot = {
-  id: string;
-  type?: string;
-  config?: { questions?: Array<{ id: string }> };
-  value?: unknown;
-  [key: string]: unknown;
-};
+function collectQuestionIds(form: FormDoc | FormDocSnapshot): Set<string> {
+  const ids = new Set<string>();
+  for (const q of form.questions as Question[]) {
+    ids.add(q.id);
+    if (q.type === "repeatable-group") {
+      for (const child of q.config?.questions ?? []) {
+        ids.add(child.id);
+      }
+    }
+  }
+  return ids;
+}
+
+export function partitionValuesByForm(
+  template: ExperimentTemplate,
+  values: Record<string, unknown> | undefined,
+): { user: FormAnswers; worker: FormAnswers } {
+  const user: FormAnswers = {};
+  const worker: FormAnswers = {};
+  if (!values) return { user, worker };
+
+  const clientIds = collectQuestionIds(template.clientForm);
+  const labIds = collectQuestionIds(template.labForm);
+
+  for (const [id, value] of Object.entries(values)) {
+    if (value === undefined) continue;
+    if (clientIds.has(id)) user[id] = value as AnswerValue;
+    else if (labIds.has(id)) worker[id] = value as AnswerValue;
+  }
+  return { user, worker };
+}
 
 export function extractValues(
   questions: QuestionSnapshot[] | undefined,
@@ -135,6 +214,40 @@ export function extractValues(
   return answers;
 }
 
+export function extractExperimentAnswers(
+  detail: ExperimentDetail,
+  template: ExperimentTemplate,
+): { user: FormAnswers; worker: FormAnswers } {
+  const fromValues = partitionValuesByForm(template, detail.values);
+  const fromClient = extractValues(readFormDoc(detail, "client").questions);
+  const fromLab = extractValues(readFormDoc(detail, "lab").questions);
+
+  return {
+    user: { ...fromClient, ...fromValues.user },
+    worker: { ...fromLab, ...fromValues.worker },
+  };
+}
+
+export function mergeFormAnswers(
+  user?: FormAnswers,
+  worker?: FormAnswers,
+): Record<string, unknown> {
+  return { ...(user ?? {}), ...(worker ?? {}) };
+}
+
+export function buildExperimentUpdateBody(
+  template: ExperimentTemplate,
+  answers: { user?: FormAnswers; worker?: FormAnswers },
+): ExperimentUpdate {
+  return {
+    clientForm: template.clientForm as FormDocSnapshot,
+    labForm: template.labForm as FormDocSnapshot,
+    calculations: mapCalculationsToApi(template.calculations),
+    values: mergeFormAnswers(answers.user, answers.worker),
+  };
+}
+
+/** @deprecated Answers are stored in top-level values; kept for read fallbacks. */
 export function injectValues(
   form: {
     title?: string | null;

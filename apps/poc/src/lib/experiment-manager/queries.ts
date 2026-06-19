@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { FormAnswers } from "@hoshina-dev/forms";
+import type { ExperimentTemplate, FormAnswers } from "@hoshina-dev/forms";
 
 import type { SessionPayload } from "@/lib/auth/definitions";
 import { usersApi } from "@/lib/custapi/client";
@@ -22,7 +22,7 @@ import {
   listSamples,
 } from "./client";
 import {
-  extractValues,
+  extractExperimentAnswers,
   templateDetailToLoaded,
   toTemplateSummary,
 } from "./mappers";
@@ -64,12 +64,6 @@ function isExperimentVisible(
   return runState.state.phase === "worker" || runState.state.phase === "result";
 }
 
-type QuestionSnapshot = { id: string; value?: unknown; required?: boolean };
-
-function questionHasValue(q: QuestionSnapshot): boolean {
-  return q.value !== undefined && q.value !== null;
-}
-
 function isClientSubmissionComplete(
   ticket: Ticket | null | undefined,
 ): boolean {
@@ -78,28 +72,33 @@ function isClientSubmissionComplete(
 }
 
 function derivePhase(
-  detail: ExperimentDetail,
+  _detail: ExperimentDetail,
+  template: ExperimentTemplate,
+  answers: { user: FormAnswers; worker: FormAnswers },
   ticket?: Ticket | null,
 ): ExperimentPhase {
-  const userQuestions =
-    (detail.userForm?.questions as QuestionSnapshot[] | undefined) ?? [];
-  const workerQuestions =
-    (detail.workerForm?.questions as QuestionSnapshot[] | undefined) ?? [];
+  const userQuestions = template.clientForm.questions;
+  const workerQuestions = template.labForm.questions;
+
+  function questionHasAnswer(q: { id: string; required?: boolean }): boolean {
+    const value = answers.user[q.id] ?? answers.worker[q.id];
+    return value !== undefined && value !== null;
+  }
 
   if (userQuestions.length > 0) {
     const unansweredRequiredUser = userQuestions.some(
-      (q) => q.required && !questionHasValue(q),
+      (q) => q.required && !questionHasAnswer(q),
     );
     if (unansweredRequiredUser) return "user";
 
     if (ticket) {
       if (!isClientSubmissionComplete(ticket)) return "user";
     } else {
-      const hasUserValues = userQuestions.some(questionHasValue);
+      const hasUserValues = userQuestions.some((q) => questionHasAnswer(q));
       const requiredUserCount = userQuestions.filter((q) => q.required).length;
       if (requiredUserCount === 0 && !hasUserValues) return "user";
 
-      const workerHasValues = workerQuestions.some(questionHasValue);
+      const workerHasValues = workerQuestions.some((q) => questionHasAnswer(q));
       if (!workerHasValues) return "user";
     }
   }
@@ -107,7 +106,7 @@ function derivePhase(
   if (workerQuestions.length > 0) {
     const requiredWorker = workerQuestions.filter((q) => q.required);
     if (requiredWorker.length > 0) {
-      const allAnswered = requiredWorker.every(questionHasValue);
+      const allAnswered = requiredWorker.every((q) => questionHasAnswer(q));
       if (allAnswered) return "result";
     }
   }
@@ -122,26 +121,29 @@ export function deriveRunStateFromDetail(
     const templateLike = {
       id: detail.template_id,
       lineage_id: "",
-      name: detail.title,
+      name: detail.name ?? detail.title ?? "",
       version: 0,
       is_current: true,
-      description: null,
-      userForm: detail.userForm ?? null,
-      workerForm: detail.workerForm,
+      description: detail.description ?? null,
+      clientForm: detail.clientForm ?? detail.userForm ?? null,
+      labForm: detail.labForm ?? detail.workerForm,
       calculations: detail.calculations,
-      template: detail.template,
     };
     const loaded = templateDetailToLoaded(templateLike);
     if (!loaded.valid) return null;
 
-    const userAnswers = extractValues(
-      detail.userForm?.questions as QuestionSnapshot[] | undefined,
-    );
-    const workerAnswers = extractValues(
-      detail.workerForm.questions as QuestionSnapshot[] | undefined,
-    );
+    const { user: userAnswers, worker: workerAnswers } =
+      extractExperimentAnswers(detail, loaded.template);
 
-    const phase = derivePhase(detail, ticket);
+    const phase = derivePhase(
+      detail,
+      loaded.template,
+      {
+        user: userAnswers,
+        worker: workerAnswers,
+      },
+      ticket,
+    );
 
     return {
       schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,

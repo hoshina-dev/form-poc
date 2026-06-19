@@ -17,6 +17,7 @@ import {
   deleteExperimentTemplate,
   downloadReport,
   ExperimentManagerError,
+  type ExperimentUpdate,
   generateReport,
   getExperiment,
   getExperimentTemplate,
@@ -25,13 +26,11 @@ import {
   updateExperiment,
   updateExperimentTemplate,
   upsertPdfTemplate,
-  type WorkerForm,
 } from "@/lib/experiment-manager/client";
 import { getDefaultSampleId } from "@/lib/experiment-manager/config";
 import {
-  injectValues,
+  buildExperimentUpdateBody,
   type LoadedTemplate,
-  mapObjectCalcsToString,
   templateDetailToLoaded,
   type TemplateRef,
   type TemplateSummary,
@@ -91,21 +90,10 @@ async function loadRunStateFromExperiment(
   return deriveRunStateFromDetail(experiment, ticket);
 }
 
-function buildExperimentUpdateBody(state: ExperimentRunState) {
-  const userAnswers = state.state.answers.user;
-  const workerAnswers = state.state.answers.worker;
-  return {
-    workerForm: injectValues(
-      state.template.labForm,
-      workerAnswers,
-    ) as WorkerForm,
-    calculations: mapObjectCalcsToString(state.template.calculations),
-    template: "",
-    userForm:
-      state.template.clientForm.questions.length > 0
-        ? (injectValues(state.template.clientForm, userAnswers) as WorkerForm)
-        : null,
-  };
+function buildExperimentUpdateBodyFromState(
+  state: ExperimentRunState,
+): ExperimentUpdate {
+  return buildExperimentUpdateBody(state.template, state.state.answers);
 }
 
 function normalizeClientState(
@@ -399,7 +387,10 @@ export async function saveExperimentStateAction(
 
     if (!normalized.success) return normalized;
 
-    await updateExperiment(expId, buildExperimentUpdateBody(normalized.data));
+    await updateExperiment(
+      expId,
+      buildExperimentUpdateBodyFromState(normalized.data),
+    );
     await advanceTicketForPhase(
       expId,
       session.appRole,

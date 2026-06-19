@@ -120,8 +120,9 @@ export default async function ExperimentDetailPage({
   if (!canViewExperiment(session, runState)) {
     notFound();
   }
-  const displayTitle = experiment.title ?? template.name;
-  const displayDescription = template.description ?? undefined;
+  const displayTitle = experiment.name ?? experiment.title ?? template.name;
+  const displayDescription =
+    typeof template.description === "string" ? template.description : undefined;
   const latestTechnicianLog = runState?.technicianLogs.at(-1);
   const statusRows = runState
     ? [

@@ -60,13 +60,15 @@ export default async function ExperimentResumePage({
     redirect(experimentPath(expId));
   }
 
+  const experimentTitle = experiment.name ?? experiment.title ?? "Experiment";
+
   return (
     <Container size="xl" py="lg">
       <Stack gap="md">
         <Group justify="space-between" align="center">
           <div>
             <Text size="sm" c="dimmed">
-              {sample.name} · {experiment.title}
+              {sample.name} · {experimentTitle}
             </Text>
             <Text size="xs" c="dimmed">
               resuming experiment {expId}
@@ -87,7 +89,7 @@ export default async function ExperimentResumePage({
         <Paper withBorder p="lg" radius="md">
           <ResumeExperimentFlow
             template={form}
-            title={experiment.title}
+            title={experimentTitle}
             description={form.labForm?.description ?? undefined}
             experimentRef={templateRef}
             expId={expId}
