@@ -133,12 +133,18 @@ function normalizeClientState(
   };
 }
 
+function technicianCanEditExisting(state: ExperimentRunState): boolean {
+  if (state.state.phase === "worker") return true;
+  // Answers were saved but POST /calculate failed — allow retry.
+  return state.state.phase === "result" && !state.state.result;
+}
+
 function normalizeTechnicianState(
   session: SessionPayload,
   existingState: ExperimentRunState | null,
   nextState: ExperimentRunState,
 ): ActionResult<ExperimentRunState> {
-  if (!existingState || existingState.state.phase !== "worker") {
+  if (!existingState || !technicianCanEditExisting(existingState)) {
     return {
       success: false,
       error: "This form is not ready for technician edits",

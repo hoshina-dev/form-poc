@@ -14,6 +14,7 @@ import { ExperimentPhaseBadge } from "@/components/ExperimentPhaseBadge";
 import { LinkAnchor, LinkButton } from "@/components/LinkButton";
 import { requireSession } from "@/lib/auth/dal";
 import { fetchExperiments } from "@/lib/experiment-manager/queries";
+import { formatDateTime } from "@/lib/format-datetime";
 import {
   experimentPath,
   experimentResumePath,
@@ -25,13 +26,6 @@ export const dynamic = "force-dynamic";
 
 function loadErrorMessage(): string {
   return "Experiments are unavailable right now. Please try again later.";
-}
-
-function formatCreatedAt(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 export default async function ExperimentsPage() {
@@ -116,7 +110,7 @@ export default async function ExperimentsPage() {
                         )}
                       </Group>
                       <Text size="sm" c="dimmed">
-                        Started {formatCreatedAt(row.createdAt)}
+                        Started {formatDateTime(row.createdAt)}
                         {session.appRole === "technician" && row.createdByName
                           ? ` · Requested by ${row.createdByName}`
                           : ""}

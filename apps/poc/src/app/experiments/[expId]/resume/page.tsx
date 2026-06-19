@@ -5,7 +5,10 @@ import { ErrorPanel } from "@/components/ErrorPanel";
 import { LinkAnchor } from "@/components/LinkButton";
 import { ResumeExperimentFlow } from "@/components/ResumeExperimentFlow";
 import { requireSession, toSessionUser } from "@/lib/auth/dal";
-import { canResumeExperiment } from "@/lib/experiment-manager/access";
+import {
+  canResumeExperiment,
+  canViewExperiment,
+} from "@/lib/experiment-manager/access";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import { fetchExperimentRun } from "@/lib/experiment-manager/queries";
 import { experimentPath, experimentsPath, samplePath } from "@/lib/routes";
@@ -56,7 +59,11 @@ export default async function ExperimentResumePage({
     redirect(experimentPath(expId));
   }
 
-  if (!canResumeExperiment(session, runState)) {
+  const resumable = canResumeExperiment(session, runState);
+  const viewableResult =
+    runState.state.phase === "result" && canViewExperiment(session, runState);
+
+  if (!resumable && !viewableResult) {
     redirect(experimentPath(expId));
   }
 

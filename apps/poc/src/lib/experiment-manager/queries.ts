@@ -23,6 +23,7 @@ import {
 } from "./client";
 import {
   buildRunResultFromCalculations,
+  experimentCalculationResultsReady,
   extractExperimentAnswers,
   hasComputedCalculationResult,
   templateDetailToLoaded,
@@ -74,7 +75,7 @@ function isClientSubmissionComplete(
 }
 
 function derivePhase(
-  _detail: ExperimentDetail,
+  detail: ExperimentDetail,
   template: ExperimentTemplate,
   answers: { user: FormAnswers; worker: FormAnswers },
   ticket?: Ticket | null,
@@ -114,9 +115,16 @@ function derivePhase(
 
   if (workerQuestions.length > 0) {
     const requiredWorker = workerQuestions.filter((q) => q.required);
-    if (requiredWorker.length > 0) {
-      const allAnswered = requiredWorker.every((q) => questionHasAnswer(q));
-      if (allAnswered) return "result";
+    const workerInputsComplete =
+      requiredWorker.length > 0
+        ? requiredWorker.every((q) => questionHasAnswer(q))
+        : workerQuestions.some((q) => questionHasAnswer(q));
+
+    if (workerInputsComplete) {
+      const hasCalculations = Object.keys(template.calculations).length > 0;
+      if (!hasCalculations || experimentCalculationResultsReady(detail)) {
+        return "result";
+      }
     }
   }
   return "worker";

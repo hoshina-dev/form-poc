@@ -1,16 +1,9 @@
 import {
   Badge,
-  Code,
   Container,
   Group,
   Paper,
   Stack,
-  Table,
-  TableTbody,
-  TableTd,
-  TableTh,
-  TableThead,
-  TableTr,
   Text,
   Title,
 } from "@mantine/core";
@@ -19,6 +12,7 @@ import { notFound } from "next/navigation";
 import { DeleteExperimentButton } from "@/components/DeleteExperimentButton";
 import { ErrorPanel } from "@/components/ErrorPanel";
 import { ExperimentPhaseBadge } from "@/components/ExperimentPhaseBadge";
+import { ExperimentStatusPanel } from "@/components/ExperimentStatusPanel";
 import { LinkAnchor, LinkButton } from "@/components/LinkButton";
 import { ReportPanel } from "@/components/ReportPanel";
 import { requireSession } from "@/lib/auth/dal";
@@ -28,6 +22,7 @@ import {
 } from "@/lib/experiment-manager/access";
 import { ExperimentManagerError } from "@/lib/experiment-manager/client";
 import { fetchExperimentRun } from "@/lib/experiment-manager/queries";
+import { formatDateTime } from "@/lib/format-datetime";
 import {
   experimentPath,
   experimentResumePath,
@@ -45,35 +40,6 @@ interface ExperimentDetailPageProps {
 
 function loadErrorMessage(): string {
   return "This experiment is unavailable right now. Please try again later.";
-}
-
-function formatCreatedAt(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function formatPhase(phase: string | null): string {
-  switch (phase) {
-    case "user":
-      return "Waiting for client";
-    case "worker":
-      return "Waiting for technician";
-    case "result":
-      return "Completed";
-    default:
-      return "Not started";
-  }
-}
-
-function answerCount(answers: Record<string, unknown> | undefined): string {
-  const count = Object.keys(answers ?? {}).length;
-  return count === 1 ? "1 answer" : `${count} answers`;
-}
-
-function fallback(value: string | undefined): string {
-  return value?.trim() || "-";
 }
 
 export default async function ExperimentDetailPage({
@@ -114,7 +80,6 @@ export default async function ExperimentDetailPage({
     (experiment.report_generated_at as string | null) ?? null;
   const canGenerateReport =
     session.appRole === "technician" && phase === "result";
-  const legacy = stateKind === "legacy";
   const resumable =
     stateKind === "current" && canResumeExperiment(session, runState);
   if (!canViewExperiment(session, runState)) {
@@ -123,43 +88,6 @@ export default async function ExperimentDetailPage({
   const displayTitle = experiment.name ?? experiment.title ?? template.name;
   const displayDescription =
     typeof template.description === "string" ? template.description : undefined;
-  const latestTechnicianLog = runState?.technicianLogs.at(-1);
-  const statusRows = runState
-    ? [
-        { label: "Ticket status", value: ticketStatusLabel(ticket?.status) },
-        { label: "Status", value: formatPhase(phase) },
-        {
-          label: "Client",
-          value: runState.createdBy
-            ? `${runState.createdBy.name} (${runState.createdBy.email})`
-            : "-",
-        },
-        {
-          label: "Client section",
-          value: answerCount(runState.state.answers.user),
-        },
-        {
-          label: "Technician section",
-          value: answerCount(runState.state.answers.worker),
-        },
-        {
-          label: "Technician changes",
-          value: String(runState.technicianLogs.length),
-        },
-        {
-          label: "Latest technician",
-          value: latestTechnicianLog
-            ? `${latestTechnicianLog.technician.name} (${formatCreatedAt(latestTechnicianLog.at)})`
-            : "-",
-        },
-        {
-          label: "Calculation result",
-          value: runState.state.result
-            ? fallback(runState.state.result.summary)
-            : "-",
-        },
-      ]
-    : [];
 
   return (
     <Container size="xl" py="lg">
@@ -185,7 +113,7 @@ export default async function ExperimentDetailPage({
               </Text>
             )}
             <Text size="xs" c="dimmed" mt={4}>
-              Started {formatCreatedAt(experiment.created_at)} · id: {expId}
+              Started {formatDateTime(experiment.created_at)} · id: {expId}
             </Text>
             {runState?.createdBy && (
               <Text size="xs" c="dimmed" mt={4}>
@@ -238,61 +166,17 @@ export default async function ExperimentDetailPage({
         )}
 
         <Paper withBorder p="md" radius="md">
-          <Title order={4}>Form status</Title>
-          {legacy ? (
-            <Text size="sm" c="dimmed" mt="xs">
-              This experiment uses the old flat state schema, so it is disabled
-              instead of being resumed with the new template-snapshot state.
-            </Text>
-          ) : runState ? (
-            <Stack gap="md" mt="xs">
-              <Table
-                withTableBorder
-                withColumnBorders
-                striped
-                highlightOnHover
-                horizontalSpacing="md"
-                verticalSpacing="sm"
-              >
-                <TableThead>
-                  <TableTr>
-                    <TableTh style={{ width: "32%" }}>Field</TableTh>
-                    <TableTh>Value</TableTh>
-                  </TableTr>
-                </TableThead>
-                <TableTbody>
-                  {statusRows.map((row) => (
-                    <TableTr key={row.label}>
-                      <TableTh scope="row">{row.label}</TableTh>
-                      <TableTd>{row.value}</TableTd>
-                    </TableTr>
-                  ))}
-                </TableTbody>
-              </Table>
-
-              <details>
-                <summary>
-                  <Text component="span" size="sm" fw={600}>
-                    View raw state JSON
-                  </Text>
-                </summary>
-                <Code block mt="xs">
-                  {JSON.stringify(runState, null, 2)}
-                </Code>
-              </details>
-            </Stack>
-          ) : (
-            <Text size="sm" c="dimmed" mt="xs">
-              This experiment has no recognized run state yet.{" "}
-              {resumable ? (
-                <LinkAnchor href={experimentResumePath(expId)} size="sm">
-                  Resume the run
-                </LinkAnchor>
-              ) : (
-                "Start a new run from the template preview."
-              )}
-            </Text>
-          )}
+          <Title order={4} mb="sm">
+            Form progress
+          </Title>
+          <ExperimentStatusPanel
+            expId={expId}
+            phase={phase}
+            stateKind={stateKind}
+            runState={runState}
+            ticketStatus={(ticket?.status as string | null) ?? null}
+            resumable={resumable}
+          />
         </Paper>
 
         <Group gap="md">

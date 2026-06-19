@@ -2,7 +2,6 @@ import "@mantine/core/styles.css";
 import "./globals.css";
 
 import {
-  ColorSchemeScript,
   mantineHtmlProps,
   MantineProvider,
 } from "@mantine/core";
@@ -22,11 +21,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" {...mantineHtmlProps}>
-      <head>
-        <ColorSchemeScript />
-      </head>
       <body>
-        <MantineProvider>
+        <MantineProvider defaultColorScheme="light">
           <Navbar />
           {children}
         </MantineProvider>

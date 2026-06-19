@@ -2,7 +2,7 @@
 
 Agent-oriented notes for continuing the nested experiment-template schema work across **form-poc** (this repo) and **experiment-manager** (sibling repo at `../experiment-manager`).
 
-Last updated: 2026-06-20.
+Last updated: 2026-06-20 (POC UX + calculate retry fixes; calculate API still broken on prod).
 
 ---
 
@@ -164,6 +164,40 @@ Legacy **`userForm`/`workerForm`** still accepted as read fallback for old DB ro
 
 **OpenAPI types:** `pnpm codegen` regenerated `packages/api-client/src/experiment-manager.d.ts` from deployed experiment-manager (2026-06-20). Write types in `client.ts` now alias generated schemas; `TemplateSnapshotFields` kept for legacy reads and JSONB detail fields.
 
+### form-poc flow UX + calculate resilience (uncommitted → next commit)
+
+| Area | Change |
+|---|---|
+| `FormFlow.tsx` | Technician submit stays on Result step (no auto-redirect); calc-failure alert + retry guidance |
+| `experiments/.../resume/page.tsx` | Allow viewing completed run on resume URL (`phase === "result"`) |
+| `ExperimentStatusPanel.tsx` | Stepper + cards + ticket timeline on experiment detail (use `StepperStep` / `TimelineItem`, not compound syntax, in server components) |
+| `derivePhase` | Phase `"result"` only when calculation `result` exists (or template has no calcs) — avoids locking technician after failed calculate |
+| `normalizeTechnicianState` | Allow retry when answers saved but no `state.result` yet |
+| `format-datetime.ts` | Fixed `en-GB` + UTC formatting (SSR/client hydration safe) |
+| `layout.tsx` | Fixed light scheme via `mantineHtmlProps` + `defaultColorScheme="light"` (no `ColorSchemeScript` — React 19 script warning) |
+
+---
+
+## Known blockers
+
+### `POST /api/experiments/{exp_id}/calculate` not working (prod)
+
+**Status:** POC is wired end-to-end (`saveExperimentStateAction` → `calculateExperiment`, `calculateExperimentAction`, `FormFlow` Result view), but the **deployed experiment-manager calculate endpoint currently fails** when technicians submit (user sees *“Form saved but calculation failed”*).
+
+**POC mitigations (in place):**
+
+- Answers are saved via `PUT` before calculate runs; phase stays `"worker"` until calculation objects have `result` on the experiment detail.
+- Technician can click **Submit & finish** again after a failure (no longer stuck with *“not ready for technician edits”*).
+
+**Backend follow-up (experiment-manager):**
+
+1. Reproduce: complete client + lab flow on prod, watch `POST …/calculate` response (status + body).
+2. Check `calculation_service.py` / `form_schema.py` against seed formulas (Python syntax, `values['id']` keys, list helpers).
+3. Confirm experiment `values` map contains all ids referenced in formulas after PUT.
+4. Run `uv run pytest tests/test_calculation_service.py` locally with failing template.
+
+Until calculate works, Result step and experiment detail will not show computed summaries; report generation may also stay blocked for incomplete runs.
+
 ---
 
 ## Why templates showed “legacy format”
@@ -180,44 +214,35 @@ Experiments list uses `deriveRunStateFromDetail`; if `loaded.valid` is false →
 
 ## Remaining tasks (priority order)
 
-### 1. Commit regenerated api-client + client.ts type aliases
+### 1. Fix `POST /calculate` on experiment-manager (prod) — **blocker**
 
-```bash
-cd form-poc
-git add packages/api-client/src/experiment-manager.d.ts apps/poc/src/lib/experiment-manager/client.ts docs/schema-migration-handoff.md
-# commit when ready
-```
+See **Known blockers** above. Highest priority; POC cannot show results until backend calculate succeeds.
 
-### 2. Wire `POST /calculate` in POC result UI ✓ (2026-06-20)
-
-- `calculateExperimentAction` calls backend and builds `ExperimentRunResult`
-- `saveExperimentStateAction` invokes calculate when phase becomes `result`
-- `deriveRunStateFromDetail` surfaces calculation `result` values on the experiment detail page
-- `FormFlow` result view calls calculate and displays summary + values
-
-### 3. Regenerate `packages/api-client` ✓ (2026-06-20)
-
-OpenAPI codegen (`pnpm codegen`) regenerated from deployed experiment-manager. Generated types now use `clientForm`/`labForm`, calculation objects, `values`, and `POST /calculate`. POC bridge aliases generated write types in `client.ts`; `TemplateSnapshotFields` remains for legacy read fallbacks and JSONB fields not narrowed on detail responses.
-
-### 4. Repeatable-group seed example (experiment-manager)
+### 2. Repeatable-group seed example (experiment-manager)
 
 No `sql_mock` template uses `repeatable-group` yet. Reference: `schema-bundle/examples/06-repeatable-measurements.json`. Add e.g. `910_seed_repeatable_measurements.up.sql`.
 
-### 5. List-aware calculation helpers (backend)
+### 3. List-aware calculation helpers (backend)
 
 Example 06 formulas use `mean(values['reading_a'])`, list comprehensions. Confirm `form_schema.CALC_BUILTINS` covers all needed helpers; extend if formulas fail at runtime.
 
-### 6. Phase detection for repeatable groups (form-poc)
+### 4. Phase detection for repeatable groups (form-poc)
 
 `derivePhase` checks top-level question ids only. Required **repeatable-group** may need “all child columns filled” logic.
 
-### 7. OpenAPI examples (experiment-manager)
+### 5. OpenAPI examples (experiment-manager)
 
 `app/models.py` `_PROXIMATE_EXAMPLE` already nested; keep in sync with seeds.
 
-### 8. Optional: ticketing dev seeds
+### 6. Optional: ticketing dev seeds
 
 Only if fixed template UUIDs are added to experiment-manager seeds. See `../ticketing-service/sql_mock/README.md`.
+
+### Done (no longer open)
+
+- ~~Commit regenerated api-client + client.ts type aliases~~ (`364593a`)
+- ~~Wire `POST /calculate` in POC result UI~~ (wired; blocked on backend)
+- ~~Regenerate `packages/api-client`~~ (`364593a`)
 
 ---
 
@@ -233,6 +258,8 @@ Only if fixed template UUIDs are added to experiment-manager seeds. See `../tick
 | Legacy gate UI | `apps/poc/src/app/samples/[sampleId]/page.tsx` |
 | Builder | `apps/poc/src/components/builder/*` |
 | Form flow | `apps/poc/src/components/FormFlow.tsx` |
+| Experiment progress UI | `apps/poc/src/components/ExperimentStatusPanel.tsx` |
+| Date formatting (UTC) | `apps/poc/src/lib/format-datetime.ts` |
 | Server actions | `apps/poc/src/app/actions/experiment-manager.ts` |
 
 ---
@@ -293,8 +320,9 @@ uv run pytest tests/test_calculation_service.py -q   # needs .env + TEST_DATA_SO
 1. Open POC samples page → templates should **not** show “legacy format” badge (with prod reseeded to new JSON).
 2. Open builder → edit/save template → reload → still valid.
 3. Run client + lab flow → PUT experiment includes `values` in network tab.
-4. `POST /calculate` → calculation objects gain `result` in experiment state.
+4. `POST /calculate` → calculation objects gain `result` in experiment state. **Currently failing on prod — see Known blockers.**
 5. Gallery `/repeatable-group` → Tabs UI, columnar JSON in value panel.
+6. Technician submit → stays on Result step; experiment detail shows Form progress panel (stepper + cards).
 
 ---
 
@@ -311,12 +339,15 @@ uv run pytest tests/test_calculation_service.py -q   # needs .env + TEST_DATA_SO
 |---|---|---|
 | form-poc | `0b48af4` | Nested schema, gallery, POC UI migration |
 | form-poc | `c367364` | API bridge + `docs/schema-migration-handoff.md` |
-| form-poc | *(uncommitted)* | Regenerated `packages/api-client` from deployed experiment-manager |
+| form-poc | `364593a` | Regenerated api-client; wire calculate in POC actions |
+| form-poc | `727e0a9` | Fix experiment 404 when API returns null question fields |
+| form-poc | *(next)* | Form flow UX, status panel, calculate retry, UTC dates |
 | experiment-manager | `89c42de` | Align API + services with schema-bundle |
 | experiment-manager | `9f9f3d2` | Seed ON CONFLICT fix for SCD2 |
+| experiment-manager | *(open)* | **`POST /calculate` failing on prod** |
 
 ---
 
 ## Suggested next agent prompt
 
-> Read `docs/schema-migration-handoff.md`. Wire `POST /calculate` into FormFlow result view and merge calculation `result` into the UI. Run typecheck/lint. Optionally add repeatable-group sql_mock seed from example 06.
+> Read `docs/schema-migration-handoff.md`. **Priority:** debug and fix `POST /api/experiments/{id}/calculate` on deployed experiment-manager (POC already calls it; prod returns errors). Reproduce from technician submit, inspect formula evaluation in `calculation_service.py`. Optionally add repeatable-group sql_mock seed from example 06.

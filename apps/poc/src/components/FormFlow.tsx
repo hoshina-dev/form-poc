@@ -16,7 +16,6 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -86,7 +85,6 @@ function FormFlowSession({
   resume,
   onRestart,
 }: FormFlowSessionProps) {
-  const router = useRouter();
   const [stage, setStage] = useState<Stage>(() =>
     resume ? phaseToStage(resume.runState.state.phase) : 0,
   );
@@ -200,8 +198,22 @@ function FormFlowSession({
       </div>
 
       {persistError && (
-        <Alert color="orange" variant="light" title="Persistence warning">
+        <Alert
+          color={persistError.includes("calculation failed") ? "red" : "orange"}
+          variant="light"
+          title={
+            persistError.includes("calculation failed")
+              ? "Calculation failed"
+              : "Persistence warning"
+          }
+        >
           {persistError}
+          {persistError.includes("calculation failed") && (
+            <Text size="sm" mt="xs">
+              Your answers were saved. Fix any issues above, then click Submit
+              &amp; finish again to retry the calculation.
+            </Text>
+          )}
         </Alert>
       )}
       {persistNotice && (
@@ -323,7 +335,8 @@ function FormFlowSession({
                   setPersistError(result.error);
                   return;
                 }
-                router.push(experimentPath(expId));
+                setPersistError(null);
+                setStage(2);
               });
             }}
           />
@@ -473,11 +486,14 @@ function ResultView({
         )}
       </Paper>
 
-      {onRestart && (
-        <Group>
-          <Button onClick={onRestart}>Start over</Button>
-        </Group>
-      )}
+      <Group>
+        {expId && (
+          <LinkAnchor href={experimentPath(expId)} size="sm">
+            View experiment details
+          </LinkAnchor>
+        )}
+        {onRestart && <Button onClick={onRestart}>Start over</Button>}
+      </Group>
     </Stack>
   );
 }

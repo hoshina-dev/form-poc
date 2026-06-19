@@ -12,6 +12,7 @@ import {
   getPdfTemplate,
   listExperiments,
 } from "@/lib/experiment-manager/client";
+import { formatDate } from "@/lib/format-datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,7 @@ export default async function PdfEditorPage({ params }: PdfEditorPageProps) {
       .filter((e) => e.template_id === templateId)
       .map((e) => ({
         id: e.id,
-        label: `${e.id.slice(0, 8)}… · ${new Date(e.created_at).toLocaleDateString()}`,
+        label: `${e.id.slice(0, 8)}… · ${formatDate(e.created_at)}`,
       }));
   } catch {
     // non-fatal — preview dropdown just won't have entries

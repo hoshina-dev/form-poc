@@ -8,6 +8,7 @@ import {
   downloadReportAction,
   generateReportAction,
 } from "@/app/actions/experiment-manager";
+import { formatDateTime } from "@/lib/format-datetime";
 
 interface ReportPanelProps {
   expId: string;
@@ -79,8 +80,8 @@ export function ReportPanel({
       </Group>
 
       {reportGeneratedAt && isReady && (
-        <Text size="sm" c="dimmed">
-          Generated {new Date(reportGeneratedAt).toLocaleString()}
+        <Text size="sm" c="dimmed" component="time" dateTime={reportGeneratedAt}>
+          Generated {formatDateTime(reportGeneratedAt)}
         </Text>
       )}
 

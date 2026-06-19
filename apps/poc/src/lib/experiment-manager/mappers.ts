@@ -115,6 +115,18 @@ export function hasComputedCalculationResult(result: unknown): boolean {
   return hasWireResult(result);
 }
 
+/** True when experiment-manager has stored at least one calculation result. */
+export function experimentCalculationResultsReady(
+  detail: Pick<ExperimentDetail, "calculations">,
+): boolean {
+  const calcs = detail.calculations;
+  if (!calcs || typeof calcs !== "object") return false;
+  return Object.values(calcs).some((calc) => {
+    if (typeof calc === "string") return false;
+    return hasComputedCalculationResult(calc.result);
+  });
+}
+
 export function mapCalculationsToApi(
   calcs: ExperimentTemplate["calculations"],
 ): Record<string, CalculationSnapshot> {
