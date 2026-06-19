@@ -27,6 +27,7 @@ import {
 } from "react";
 
 import {
+  calculateExperimentAction,
   saveExperimentStateAction,
   startExperimentAction,
 } from "@/app/actions/experiment-manager";
@@ -35,6 +36,7 @@ import type { SessionUser } from "@/lib/auth/definitions";
 import type { TemplateRef } from "@/lib/experiment-manager/mappers";
 import {
   createExperimentRunState,
+  type ExperimentRunResult,
   type ExperimentRunState,
   phaseToStage,
 } from "@/lib/experiment-manager/state";
@@ -386,12 +388,16 @@ function ResultView({
   const [, startTransition] = useTransition();
   const savedRef = useRef(false);
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [calcError, setCalcError] = useState<string | null>(null);
+  const [calcLoading, setCalcLoading] = useState(Boolean(expId));
+  const [runResult, setRunResult] = useState<ExperimentRunResult | null>(null);
 
   useEffect(() => {
     if (!expId || savedRef.current) return;
     savedRef.current = true;
-    startTransition(() =>
-      saveExperimentStateAction(
+
+    startTransition(async () => {
+      const saveResult = await saveExperimentStateAction(
         expId,
         createExperimentRunState({
           template,
@@ -399,13 +405,24 @@ function ResultView({
           user: userAnswers,
           worker: workerAnswers,
         }),
-      ).then((result) => {
-        if (!result.success) {
-          setPersistError(result.error);
-        }
-      }),
-    );
+      );
+      if (!saveResult.success) {
+        setPersistError(saveResult.error);
+        setCalcLoading(false);
+        return;
+      }
+
+      const calcResult = await calculateExperimentAction(expId);
+      if (!calcResult.success) {
+        setCalcError(calcResult.error);
+      } else {
+        setRunResult(calcResult.data);
+      }
+      setCalcLoading(false);
+    });
   }, [expId, template, userAnswers, workerAnswers, startTransition]);
+
+  const calculationResults = runResult?.calculations ?? {};
 
   return (
     <Stack gap="md">
@@ -413,6 +430,18 @@ function ResultView({
         <Alert color="orange" variant="light" title="Persistence warning">
           {persistError}
         </Alert>
+      )}
+      {calcError && (
+        <Alert color="red" variant="light" title="Calculation failed">
+          {calcError}
+        </Alert>
+      )}
+
+      {runResult?.summary && (
+        <Paper withBorder p="md" radius="md">
+          <Title order={4}>Summary</Title>
+          <Text mt="xs">{runResult.summary}</Text>
+        </Paper>
       )}
 
       <Paper withBorder p="md" radius="md">
@@ -424,25 +453,34 @@ function ResultView({
 
       <Paper withBorder p="md" radius="md">
         <Title order={4}>Calculations</Title>
-        <Stack gap="sm" mt="xs">
-          {Object.entries(template.calculations).map(([name, calc]) => (
-            <div key={name}>
-              <Text fw={600}>{name}</Text>
-              <Text size="sm" c="dimmed">
-                {calc.formula}
-              </Text>
-              {calc.result !== undefined ? (
-                <Text size="sm" mt={4}>
-                  {String(calc.result)}
-                </Text>
-              ) : (
-                <Text size="sm" c="dimmed" mt={4}>
-                  computed by backend
-                </Text>
-              )}
-            </div>
-          ))}
-        </Stack>
+        {calcLoading ? (
+          <Text size="sm" c="dimmed" mt="xs">
+            Computing results…
+          </Text>
+        ) : (
+          <Stack gap="sm" mt="xs">
+            {Object.entries(template.calculations).map(([name, calc]) => {
+              const result = calculationResults[name];
+              return (
+                <div key={name}>
+                  <Text fw={600}>{name}</Text>
+                  <Text size="sm" c="dimmed">
+                    {calc.formula}
+                  </Text>
+                  {result !== undefined ? (
+                    <Text size="sm" mt={4}>
+                      {String(result)}
+                    </Text>
+                  ) : (
+                    <Text size="sm" c="dimmed" mt={4}>
+                      No result
+                    </Text>
+                  )}
+                </div>
+              );
+            })}
+          </Stack>
+        )}
       </Paper>
 
       {onRestart && (

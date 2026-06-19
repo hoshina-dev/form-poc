@@ -145,7 +145,7 @@ Columnar answers in **`values`**: `{ "reading_a": [v1, v2, …], "reading_b": [�
 - `scripts/migrate_seed_sql.py` + `nest_question_config.py` for rewrites
 - PDF `context.py` reads `config.default`, flattens repeatable-group, prefers calculation `result`
 
-### form-poc API bridge (**uncommitted local work** — not on `main` yet)
+### form-poc API bridge (`c367364` on `main`)
 
 These files fix prod “legacy format” flags by reading `clientForm`/`labForm`/`values`:
 
@@ -162,7 +162,7 @@ These files fix prod “legacy format” flags by reading `clientForm`/`labForm`
 
 Legacy **`userForm`/`workerForm`** still accepted as read fallback for old DB rows.
 
-**Before testing against prod:** commit or apply these changes. Last schema commit on `main` is only `0b48af4` (UI/schema — not API bridge).
+**OpenAPI types:** `pnpm codegen` regenerated `packages/api-client/src/experiment-manager.d.ts` from deployed experiment-manager (2026-06-20). Write types in `client.ts` now alias generated schemas; `TemplateSnapshotFields` kept for legacy reads and JSONB detail fields.
 
 ---
 
@@ -180,24 +180,24 @@ Experiments list uses `deriveRunStateFromDetail`; if `loaded.valid` is false →
 
 ## Remaining tasks (priority order)
 
-### 1. Commit form-poc API bridge + this handoff doc
+### 1. Commit regenerated api-client + client.ts type aliases
 
 ```bash
 cd form-poc
-git status   # expect modified files listed in “API bridge” section above + docs/
-git add apps/poc/src/lib/experiment-manager/ apps/poc/src/app/ apps/poc/src/components/pdf-editor/PdfEditor.tsx docs/
+git add packages/api-client/src/experiment-manager.d.ts apps/poc/src/lib/experiment-manager/client.ts docs/schema-migration-handoff.md
 # commit when ready
 ```
 
-### 2. Wire `POST /calculate` in POC result UI
+### 2. Wire `POST /calculate` in POC result UI ✓ (2026-06-20)
 
-- Client helper exists: `calculateExperiment()` in `client.ts`
-- `FormFlow` result view still shows formula text + placeholder “computed by backend”
-- **Task:** after lab submit (or on result stage), call calculate, merge `result` into displayed calculations / run state
+- `calculateExperimentAction` calls backend and builds `ExperimentRunResult`
+- `saveExperimentStateAction` invokes calculate when phase becomes `result`
+- `deriveRunStateFromDetail` surfaces calculation `result` values on the experiment detail page
+- `FormFlow` result view calls calculate and displays summary + values
 
-### 3. Regenerate `packages/api-client`
+### 3. Regenerate `packages/api-client` ✓ (2026-06-20)
 
-OpenAPI codegen (`packages/api-client/ts-codegen.sh`) still documents old `userForm`/`workerForm`. Regenerate from prod/staging experiment-manager `/docs` when convenient; until then POC uses hand-written bridging types in `client.ts`.
+OpenAPI codegen (`pnpm codegen`) regenerated from deployed experiment-manager. Generated types now use `clientForm`/`labForm`, calculation objects, `values`, and `POST /calculate`. POC bridge aliases generated write types in `client.ts`; `TemplateSnapshotFields` remains for legacy read fallbacks and JSONB fields not narrowed on detail responses.
 
 ### 4. Repeatable-group seed example (experiment-manager)
 
@@ -310,7 +310,8 @@ uv run pytest tests/test_calculation_service.py -q   # needs .env + TEST_DATA_SO
 | Repo | Commit | Summary |
 |---|---|---|
 | form-poc | `0b48af4` | Nested schema, gallery, POC UI migration |
-| form-poc | *(uncommitted)* | API bridge + `docs/schema-migration-handoff.md` |
+| form-poc | `c367364` | API bridge + `docs/schema-migration-handoff.md` |
+| form-poc | *(uncommitted)* | Regenerated `packages/api-client` from deployed experiment-manager |
 | experiment-manager | `89c42de` | Align API + services with schema-bundle |
 | experiment-manager | `9f9f3d2` | Seed ON CONFLICT fix for SCD2 |
 

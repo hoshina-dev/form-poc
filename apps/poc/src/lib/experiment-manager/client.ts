@@ -51,23 +51,19 @@ export async function emFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return parseJson<T>(res);
 }
 
-export type SampleSummary =
-  ExperimentManager.Components["schemas"]["SampleSummary"];
+type Em = ExperimentManager.Components["schemas"];
 
-export interface FormDocSnapshot {
-  title?: string | null;
-  description?: string | null;
-  questions: Array<{ id: string; [key: string]: unknown }>;
-}
-
-export interface CalculationSnapshot {
-  formula: string;
-  result?: string | number | boolean | null | unknown[];
-}
+export type SampleSummary = Em["SampleSummary"];
+export type FormDocSnapshot = Em["FormDoc"];
+export type CalculationSnapshot = Em["Calculation"];
+export type ExperimentTemplateCreate = Em["ExperimentTemplateCreate"];
+export type ExperimentTemplateUpdate = Em["ExperimentTemplateUpdate"];
+export type ExperimentUpdate = Em["ExperimentUpdate"];
 
 /**
  * Fields merged from experiment template / experiment state JSONB.
- * Supports the current clientForm/labForm schema and legacy userForm/workerForm.
+ * OpenAPI types detail responses as `[key: string]: unknown`; this narrows
+ * known snapshot keys. Legacy userForm/workerForm kept for old DB rows.
  */
 export interface TemplateSnapshotFields {
   clientForm?: FormDocSnapshot | null;
@@ -89,34 +85,14 @@ export type ExperimentTemplateDetail =
 export type ExperimentTemplateSummary =
   ExperimentManager.Components["schemas"]["ExperimentTemplateSummary"];
 
-export interface ExperimentTemplateCreate {
-  title: string;
-  description?: string | null;
-  clientForm: FormDocSnapshot;
-  labForm: FormDocSnapshot;
-  calculations: Record<string, CalculationSnapshot>;
-}
-
-export type ExperimentTemplateUpdate = ExperimentTemplateCreate;
-
 export type ExperimentDetail =
   ExperimentManager.Components["schemas"]["ExperimentDetail"] &
     TemplateSnapshotFields & {
-      id: string;
-      sample_id: string;
-      template_id: string;
       name?: string;
       description?: string | null;
       /** @deprecated use name */
       title?: string;
     };
-
-export interface ExperimentUpdate {
-  clientForm: FormDocSnapshot;
-  labForm: FormDocSnapshot;
-  calculations: Record<string, CalculationSnapshot>;
-  values: Record<string, unknown>;
-}
 
 export type ExperimentSummary =
   ExperimentManager.Components["schemas"]["ExperimentSummary"];

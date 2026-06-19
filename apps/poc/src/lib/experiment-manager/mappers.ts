@@ -17,6 +17,7 @@ import type {
   ExperimentUpdate,
   FormDocSnapshot,
 } from "./client";
+import type { ExperimentRunResult } from "./state";
 
 /** Composite key when listing templates across samples. */
 export interface TemplateRef {
@@ -100,6 +101,63 @@ export function mapCalculationsToApi(
       result !== undefined ? { formula, result } : { formula },
     ]),
   );
+}
+
+const SUMMARY_CALC_KEYS = ["summary", "report", "template"] as const;
+
+function pickCalculationSummary(
+  calculations: ExperimentTemplate["calculations"],
+  results: Record<string, unknown>,
+): string {
+  for (const key of SUMMARY_CALC_KEYS) {
+    const value = results[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+
+  for (const key of Object.keys(calculations)) {
+    if (!key.endsWith("_summary")) continue;
+    const value = results[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+
+  const parts = Object.entries(results).map(
+    ([name, value]) => `${name} = ${String(value)}`,
+  );
+  return parts.join(" | ");
+}
+
+export function buildRunResultFromCalculations(
+  calculations: ExperimentTemplate["calculations"],
+): ExperimentRunResult {
+  const resultValues: Record<string, unknown> = {};
+  for (const [name, calc] of Object.entries(calculations)) {
+    if (calc.result !== undefined) {
+      resultValues[name] = calc.result;
+    }
+  }
+  return {
+    calculations: resultValues,
+    summary: pickCalculationSummary(calculations, resultValues),
+  };
+}
+
+export function buildRunResultFromDetail(
+  detail: ExperimentDetail,
+  template: ExperimentTemplate,
+): ExperimentRunResult {
+  const calculations = normalizeCalculations(detail.calculations);
+  const merged: ExperimentTemplate["calculations"] = Object.fromEntries(
+    Object.entries(template.calculations).map(([name, calc]) => {
+      const wire = calculations[name];
+      return [
+        name,
+        wire?.result !== undefined
+          ? { formula: calc.formula, result: wire.result as never }
+          : calc,
+      ];
+    }),
+  );
+  return buildRunResultFromCalculations(merged);
 }
 
 /** @deprecated Use mapCalculationsToApi */

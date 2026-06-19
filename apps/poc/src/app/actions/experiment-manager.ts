@@ -11,6 +11,7 @@ import {
   canViewExperiment,
 } from "@/lib/experiment-manager/access";
 import {
+  calculateExperiment,
   createExperiment,
   createExperimentTemplate,
   deleteExperiment,
@@ -30,6 +31,7 @@ import {
 import { getDefaultSampleId } from "@/lib/experiment-manager/config";
 import {
   buildExperimentUpdateBody,
+  buildRunResultFromDetail,
   type LoadedTemplate,
   templateDetailToLoaded,
   type TemplateRef,
@@ -45,6 +47,7 @@ import {
 } from "@/lib/experiment-manager/queries";
 import {
   type ExperimentActor,
+  type ExperimentRunResult,
   type ExperimentRunState,
   parseExperimentRunState,
 } from "@/lib/experiment-manager/state";
@@ -391,6 +394,13 @@ export async function saveExperimentStateAction(
       expId,
       buildExperimentUpdateBodyFromState(normalized.data),
     );
+    if (normalized.data.state.phase === "result") {
+      try {
+        await calculateExperiment(expId);
+      } catch (error) {
+        return actionError(error, "Form saved but calculation failed");
+      }
+    }
     await advanceTicketForPhase(
       expId,
       session.appRole,
@@ -401,6 +411,50 @@ export async function saveExperimentStateAction(
     return { success: true, data: undefined };
   } catch (error) {
     return actionError(error, "Failed to save experiment state");
+  }
+}
+
+export async function calculateExperimentAction(
+  expId: string,
+): Promise<ActionResult<ExperimentRunResult>> {
+  try {
+    const session = await requireSession();
+    const experiment = await getExperiment(expId);
+    const runState = await loadRunStateFromExperiment(expId, experiment);
+    if (!canViewExperiment(session, runState)) {
+      return { success: false, error: "Experiment not found" };
+    }
+    if (runState?.state.phase !== "result") {
+      return {
+        success: false,
+        error: "Experiment is not ready for calculation",
+      };
+    }
+
+    const calculated = await calculateExperiment(expId);
+    const template = templateDetailToLoaded({
+      id: calculated.template_id,
+      lineage_id: "",
+      name: calculated.name ?? calculated.title ?? "",
+      version: 0,
+      is_current: true,
+      description: calculated.description ?? null,
+      clientForm: calculated.clientForm ?? calculated.userForm ?? null,
+      labForm: calculated.labForm ?? calculated.workerForm,
+      calculations: calculated.calculations,
+    });
+    if (!template.valid) {
+      return { success: false, error: "Experiment template is invalid" };
+    }
+
+    revalidatePath("/experiments");
+    revalidatePath(`/experiments/${expId}`);
+    return {
+      success: true,
+      data: buildRunResultFromDetail(calculated, template.template),
+    };
+  } catch (error) {
+    return actionError(error, "Failed to calculate experiment results");
   }
 }
 

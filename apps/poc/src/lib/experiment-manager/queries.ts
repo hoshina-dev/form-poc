@@ -22,6 +22,7 @@ import {
   listSamples,
 } from "./client";
 import {
+  buildRunResultFromCalculations,
   extractExperimentAnswers,
   templateDetailToLoaded,
   toTemplateSummary,
@@ -145,6 +146,10 @@ export function deriveRunStateFromDetail(
       ticket,
     );
 
+    const hasCalculationResults = Object.values(
+      loaded.template.calculations,
+    ).some((calc) => calc.result !== undefined);
+
     return {
       schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
       template: loaded.template,
@@ -159,6 +164,13 @@ export function deriveRunStateFromDetail(
             ? { worker: workerAnswers as FormAnswers }
             : {}),
         },
+        ...(phase === "result" && hasCalculationResults
+          ? {
+              result: buildRunResultFromCalculations(
+                loaded.template.calculations,
+              ),
+            }
+          : {}),
       },
     };
   } catch {

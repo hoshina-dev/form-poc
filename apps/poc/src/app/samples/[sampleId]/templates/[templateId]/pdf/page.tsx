@@ -106,11 +106,15 @@ export default async function PdfEditorPage({ params }: PdfEditorPageProps) {
   // Build variable groups from template
   const sourceVars = [
     ...expandSourceVars(
-      (template.clientForm?.questions ?? template.userForm?.questions ?? []) as SnapshotQuestion[],
+      (template.clientForm?.questions ??
+        template.userForm?.questions ??
+        []) as SnapshotQuestion[],
       "client",
     ),
     ...expandSourceVars(
-      (template.labForm?.questions ?? template.workerForm?.questions ?? []) as SnapshotQuestion[],
+      (template.labForm?.questions ??
+        template.workerForm?.questions ??
+        []) as SnapshotQuestion[],
       "lab",
     ),
   ];

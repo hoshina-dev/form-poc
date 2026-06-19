@@ -183,6 +183,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/experiments/{exp_id}/calculate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Calculate Experiment */
+    post: operations["calculate_experiment_api_experiments__exp_id__calculate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/experiments/{exp_id}/report/generate": {
     parameters: {
       query?: never;
@@ -221,6 +238,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** Calculation */
+    Calculation: {
+      /** Formula */
+      formula: string;
+      /** Result */
+      result?: unknown;
+    };
     /**
      * ExperimentCreate
      * @example {
@@ -306,73 +330,100 @@ export interface components {
      * ExperimentTemplateCreate
      * @example {
      *       "calculations": {
-     *         "ash_mass": "mass_after_ash - crucible_mass",
-     *         "ash_pct": "Math.round(1000 * ash_mass / sample_mass) / 10",
-     *         "fixed_carbon_pct": "Math.round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10",
-     *         "moisture_loss": "crucible_mass + sample_mass - mass_after_moisture",
-     *         "moisture_pct": "Math.round(1000 * moisture_loss / sample_mass) / 10",
-     *         "volatile_loss": "mass_after_moisture - mass_after_volatile",
-     *         "volatile_pct": "Math.round(1000 * volatile_loss / sample_mass) / 10"
+     *         "ash_mass": {
+     *           "formula": "values['mass_after_ash'] - values['crucible_mass']"
+     *         },
+     *         "ash_pct": {
+     *           "formula": "round(1000 * ash_mass / values['sample_mass']) / 10"
+     *         },
+     *         "fixed_carbon_pct": {
+     *           "formula": "round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10"
+     *         },
+     *         "moisture_loss": {
+     *           "formula": "values['crucible_mass'] + values['sample_mass'] - values['mass_after_moisture']"
+     *         },
+     *         "moisture_pct": {
+     *           "formula": "round(1000 * moisture_loss / values['sample_mass']) / 10"
+     *         },
+     *         "volatile_loss": {
+     *           "formula": "values['mass_after_moisture'] - values['mass_after_volatile']"
+     *         },
+     *         "volatile_pct": {
+     *           "formula": "round(1000 * volatile_loss / values['sample_mass']) / 10"
+     *         }
+     *       },
+     *       "clientForm": {
+     *         "questions": [],
+     *         "title": "Client Intake"
      *       },
      *       "description": "Determine moisture, ash, volatile matter, and fixed carbon content",
-     *       "template": "Moisture = {{moisture_pct}}% | Volatile Matter = {{volatile_pct}}% | Ash = {{ash_pct}}% | Fixed Carbon = {{fixed_carbon_pct}}%",
-     *       "title": "Proximate Analysis",
-     *       "workerForm": {
+     *       "labForm": {
      *         "description": "Record masses at each stage of the proximate analysis procedure.",
      *         "questions": [
      *           {
-     *             "default": 20,
+     *             "config": {
+     *               "default": 20,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "crucible_mass",
      *             "label": "Crucible mass (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 1,
+     *             "config": {
+     *               "default": 1,
+     *               "max": 10,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "sample_mass",
      *             "label": "Sample mass (g)",
-     *             "max": 10,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 20.8,
+     *             "config": {
+     *               "default": 20.8,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "mass_after_moisture",
      *             "label": "Mass after moisture drying at 105°C (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 20.5,
+     *             "config": {
+     *               "default": 20.5,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "mass_after_volatile",
      *             "label": "Mass after volatile matter removal at 900°C (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 20.1,
+     *             "config": {
+     *               "default": 20.1,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "mass_after_ash",
      *             "label": "Mass after ashing at 750°C (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           }
      *         ],
      *         "title": "Proximate Analysis Form"
-     *       }
+     *       },
+     *       "title": "Proximate Analysis"
      *     }
      */
     ExperimentTemplateCreate: {
@@ -380,17 +431,12 @@ export interface components {
       title: string;
       /** Description */
       description?: string | null;
-      /** Userform */
-      userForm?: {
-        [key: string]: unknown;
-      } | null;
-      workerForm: components["schemas"]["WorkerForm"];
+      clientForm: components["schemas"]["FormDoc"];
+      labForm: components["schemas"]["FormDoc"];
       /** Calculations */
       calculations: {
-        [key: string]: string;
+        [key: string]: components["schemas"]["Calculation"];
       };
-      /** Template */
-      template: string;
     };
     /** ExperimentTemplateDetail */
     ExperimentTemplateDetail: {
@@ -448,73 +494,100 @@ export interface components {
      * ExperimentTemplateUpdate
      * @example {
      *       "calculations": {
-     *         "ash_mass": "mass_after_ash - crucible_mass",
-     *         "ash_pct": "Math.round(1000 * ash_mass / sample_mass) / 10",
-     *         "fixed_carbon_pct": "Math.round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10",
-     *         "moisture_loss": "crucible_mass + sample_mass - mass_after_moisture",
-     *         "moisture_pct": "Math.round(1000 * moisture_loss / sample_mass) / 10",
-     *         "volatile_loss": "mass_after_moisture - mass_after_volatile",
-     *         "volatile_pct": "Math.round(1000 * volatile_loss / sample_mass) / 10"
+     *         "ash_mass": {
+     *           "formula": "values['mass_after_ash'] - values['crucible_mass']"
+     *         },
+     *         "ash_pct": {
+     *           "formula": "round(1000 * ash_mass / values['sample_mass']) / 10"
+     *         },
+     *         "fixed_carbon_pct": {
+     *           "formula": "round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10"
+     *         },
+     *         "moisture_loss": {
+     *           "formula": "values['crucible_mass'] + values['sample_mass'] - values['mass_after_moisture']"
+     *         },
+     *         "moisture_pct": {
+     *           "formula": "round(1000 * moisture_loss / values['sample_mass']) / 10"
+     *         },
+     *         "volatile_loss": {
+     *           "formula": "values['mass_after_moisture'] - values['mass_after_volatile']"
+     *         },
+     *         "volatile_pct": {
+     *           "formula": "round(1000 * volatile_loss / values['sample_mass']) / 10"
+     *         }
+     *       },
+     *       "clientForm": {
+     *         "questions": [],
+     *         "title": "Client Intake"
      *       },
      *       "description": "Determine moisture, ash, volatile matter, and fixed carbon content",
-     *       "template": "Moisture = {{moisture_pct}}% | Volatile Matter = {{volatile_pct}}% | Ash = {{ash_pct}}% | Fixed Carbon = {{fixed_carbon_pct}}%",
-     *       "title": "Proximate Analysis",
-     *       "workerForm": {
+     *       "labForm": {
      *         "description": "Record masses at each stage of the proximate analysis procedure.",
      *         "questions": [
      *           {
-     *             "default": 20,
+     *             "config": {
+     *               "default": 20,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "crucible_mass",
      *             "label": "Crucible mass (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 1,
+     *             "config": {
+     *               "default": 1,
+     *               "max": 10,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "sample_mass",
      *             "label": "Sample mass (g)",
-     *             "max": 10,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 20.8,
+     *             "config": {
+     *               "default": 20.8,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "mass_after_moisture",
      *             "label": "Mass after moisture drying at 105°C (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 20.5,
+     *             "config": {
+     *               "default": 20.5,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "mass_after_volatile",
      *             "label": "Mass after volatile matter removal at 900°C (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           },
      *           {
-     *             "default": 20.1,
+     *             "config": {
+     *               "default": 20.1,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "mass_after_ash",
      *             "label": "Mass after ashing at 750°C (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
      *             "type": "number"
      *           }
      *         ],
      *         "title": "Proximate Analysis Form"
-     *       }
+     *       },
+     *       "title": "Proximate Analysis"
      *     }
      */
     ExperimentTemplateUpdate: {
@@ -522,17 +595,12 @@ export interface components {
       title: string;
       /** Description */
       description?: string | null;
-      /** Userform */
-      userForm?: {
-        [key: string]: unknown;
-      } | null;
-      workerForm: components["schemas"]["WorkerForm"];
+      clientForm: components["schemas"]["FormDoc"];
+      labForm: components["schemas"]["FormDoc"];
       /** Calculations */
       calculations: {
-        [key: string]: string;
+        [key: string]: components["schemas"]["Calculation"];
       };
-      /** Template */
-      template: string;
     };
     /** ExperimentTemplatesResponse */
     ExperimentTemplatesResponse: {
@@ -548,100 +616,84 @@ export interface components {
      * ExperimentUpdate
      * @example {
      *       "calculations": {
-     *         "ash_mass": "mass_after_ash - crucible_mass",
-     *         "ash_pct": "Math.round(1000 * ash_mass / sample_mass) / 10",
-     *         "fixed_carbon_pct": "Math.round(10 * (100 - moisture_pct - volatile_pct - ash_pct)) / 10",
-     *         "moisture_loss": "crucible_mass + sample_mass - mass_after_moisture",
-     *         "moisture_pct": "Math.round(1000 * moisture_loss / sample_mass) / 10",
-     *         "volatile_loss": "mass_after_moisture - mass_after_volatile",
-     *         "volatile_pct": "Math.round(1000 * volatile_loss / sample_mass) / 10"
+     *         "moisture_loss": {
+     *           "formula": "values['crucible_mass'] + values['sample_mass'] - values['mass_after_moisture']"
+     *         }
      *       },
-     *       "template": "Moisture = {{moisture_pct}}% | Volatile Matter = {{volatile_pct}}% | Ash = {{ash_pct}}% | Fixed Carbon = {{fixed_carbon_pct}}%",
-     *       "workerForm": {
-     *         "description": "Record masses at each stage of the proximate analysis procedure.",
+     *       "clientForm": {
+     *         "questions": [],
+     *         "title": "Client Intake"
+     *       },
+     *       "labForm": {
      *         "questions": [
      *           {
-     *             "default": 20,
+     *             "config": {
+     *               "default": 20,
+     *               "max": 200,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "crucible_mass",
      *             "label": "Crucible mass (g)",
-     *             "max": 200,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
-     *             "type": "number",
-     *             "value": 21.354
+     *             "type": "number"
      *           },
      *           {
-     *             "default": 1,
+     *             "config": {
+     *               "default": 1,
+     *               "max": 10,
+     *               "min": 0,
+     *               "step": 0.001
+     *             },
      *             "id": "sample_mass",
      *             "label": "Sample mass (g)",
-     *             "max": 10,
-     *             "min": 0,
      *             "required": true,
-     *             "step": 0.001,
-     *             "type": "number",
-     *             "value": 1.001
-     *           },
-     *           {
-     *             "default": 20.8,
-     *             "id": "mass_after_moisture",
-     *             "label": "Mass after moisture drying at 105°C (g)",
-     *             "max": 200,
-     *             "min": 0,
-     *             "required": true,
-     *             "step": 0.001,
-     *             "type": "number",
-     *             "value": 22.247
-     *           },
-     *           {
-     *             "default": 20.5,
-     *             "id": "mass_after_volatile",
-     *             "label": "Mass after volatile matter removal at 900°C (g)",
-     *             "max": 200,
-     *             "min": 0,
-     *             "required": true,
-     *             "step": 0.001,
-     *             "type": "number",
-     *             "value": 21.891
-     *           },
-     *           {
-     *             "default": 20.1,
-     *             "id": "mass_after_ash",
-     *             "label": "Mass after ashing at 750°C (g)",
-     *             "max": 200,
-     *             "min": 0,
-     *             "required": true,
-     *             "step": 0.001,
-     *             "type": "number",
-     *             "value": 21.501
+     *             "type": "number"
      *           }
      *         ],
      *         "title": "Proximate Analysis Form"
+     *       },
+     *       "values": {
+     *         "crucible_mass": 21.354,
+     *         "mass_after_ash": 21.501,
+     *         "mass_after_moisture": 22.247,
+     *         "mass_after_volatile": 21.891,
+     *         "sample_mass": 1.001
      *       }
      *     }
      */
     ExperimentUpdate: {
-      workerForm: components["schemas"]["WorkerForm"];
+      clientForm: components["schemas"]["FormDoc"];
+      labForm: components["schemas"]["FormDoc"];
       /** Calculations */
       calculations: {
-        [key: string]: string;
+        [key: string]: components["schemas"]["Calculation"];
       };
-      /** Template */
-      template: string;
-      /** Userform */
-      userForm?: {
+      /** Values */
+      values?: {
         [key: string]: unknown;
-      } | null;
+      };
     };
     /** ExperimentsListResponse */
     ExperimentsListResponse: {
       /** Experiments */
       experiments: components["schemas"]["ExperimentSummary"][];
     };
+    /** FormDoc */
+    FormDoc: {
+      /** Title */
+      title: string;
+      /** Description */
+      description?: string | null;
+      /** Questions */
+      questions: components["schemas"]["FormQuestion"][];
+    };
     /** FormQuestion */
     FormQuestion: {
       /** Id */
       id: string;
+      /** Type */
+      type: string;
       /** Label */
       label: string;
       /** Description */
@@ -651,16 +703,6 @@ export interface components {
        * @default false
        */
       required: boolean;
-      /** Type */
-      type: string;
-      /** Options */
-      options?:
-        | {
-            [key: string]: unknown;
-          }[]
-        | null;
-      /** Placeholder */
-      placeholder?: string | null;
     } & {
       [key: string]: unknown;
     };
@@ -758,15 +800,6 @@ export interface components {
       input?: unknown;
       /** Context */
       ctx?: Record<string, never>;
-    };
-    /** WorkerForm */
-    WorkerForm: {
-      /** Title */
-      title?: string | null;
-      /** Description */
-      description?: string | null;
-      /** Questions */
-      questions: components["schemas"]["FormQuestion"][];
     };
   };
   responses: never;
@@ -1355,6 +1388,37 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  calculate_experiment_api_experiments__exp_id__calculate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        exp_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ExperimentDetail"];
+        };
       };
       /** @description Validation Error */
       422: {
