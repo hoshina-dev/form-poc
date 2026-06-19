@@ -51,6 +51,24 @@ type QuestionSnapshot = {
 
 type CalculationWire = CalculationSnapshot | string;
 
+function stripNullFields(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripNullFields);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entryValue]) => entryValue !== null)
+        .map(([key, entryValue]) => [key, stripNullFields(entryValue)]),
+    );
+  }
+  return value;
+}
+
+function hasWireResult(result: unknown): boolean {
+  return result !== undefined && result !== null && result !== "";
+}
+
 function readFormDoc(
   detail: {
     clientForm?: FormDocSnapshot | null;
@@ -80,16 +98,21 @@ export function normalizeCalculations(
         typeof entry === "object" &&
         typeof entry.formula === "string"
       ) {
+        const result = hasWireResult(entry.result) ? entry.result : undefined;
         return [
           name,
-          entry.result !== undefined
-            ? { formula: entry.formula, result: entry.result as never }
+          result !== undefined
+            ? { formula: entry.formula, result: result as never }
             : { formula: entry.formula },
         ];
       }
       return [name, { formula: "" }];
     }),
   );
+}
+
+export function hasComputedCalculationResult(result: unknown): boolean {
+  return hasWireResult(result);
 }
 
 export function mapCalculationsToApi(
@@ -131,7 +154,7 @@ export function buildRunResultFromCalculations(
 ): ExperimentRunResult {
   const resultValues: Record<string, unknown> = {};
   for (const [name, calc] of Object.entries(calculations)) {
-    if (calc.result !== undefined) {
+    if (hasWireResult(calc.result)) {
       resultValues[name] = calc.result;
     }
   }
@@ -151,8 +174,8 @@ export function buildRunResultFromDetail(
       const wire = calculations[name];
       return [
         name,
-        wire?.result !== undefined
-          ? { formula: calc.formula, result: wire.result as never }
+        hasWireResult(wire?.result)
+          ? { formula: calc.formula, result: wire!.result as never }
           : calc,
       ];
     }),
@@ -170,11 +193,11 @@ export function mapObjectCalcsToString(
 export function templateDetailToLoaded(
   detail: ExperimentTemplateDetail,
 ): LoadedTemplate {
-  const candidate = {
+  const candidate = stripNullFields({
     clientForm: readFormDoc(detail, "client"),
     labForm: readFormDoc(detail, "lab"),
     calculations: normalizeCalculations(detail.calculations),
-  };
+  });
   const parsed = ExperimentTemplateSchema.safeParse(candidate);
   const meta = {
     title: detail.name,

@@ -24,6 +24,7 @@ import {
 import {
   buildRunResultFromCalculations,
   extractExperimentAnswers,
+  hasComputedCalculationResult,
   templateDetailToLoaded,
   toTemplateSummary,
 } from "./mappers";
@@ -155,7 +156,7 @@ export function deriveRunStateFromDetail(
 
     const hasCalculationResults = Object.values(
       loaded.template.calculations,
-    ).some((calc) => calc.result !== undefined);
+    ).some((calc) => hasComputedCalculationResult(calc.result));
 
     return {
       schemaVersion: EXPERIMENT_RUN_STATE_SCHEMA_VERSION,
